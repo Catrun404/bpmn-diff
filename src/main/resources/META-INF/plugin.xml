@@ -5,11 +5,17 @@
     <vendor>catrun404</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
+    <resource-bundle>messages.BpmnDiffBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.catrun404.bpmndiff.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.catrun404.bpmndiff.startup.MyProjectActivity" />
+        <toolWindow factoryClass="com.catrun404.bpmndiff.toolWindow.BpmnDiffToolWindowFactory" id="bpmn-diff" anchor="bottom"/>
+        <projectConfigurable
+                parentId="tools"
+                instance="com.catrun404.bpmndiff.settings.BpmnDiffConfigurable"
+                id="com.catrun404.bpmndiff.settings.BpmnDiffConfigurable"
+                key="settings.display.name"
+                nonDefaultProject="true"/>
     </extensions>
 </idea-plugin>

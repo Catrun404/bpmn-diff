@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>bpmn-js diff demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <!-- bpmn-js core CSS (icons and diagram styles) -->
+    <link rel="stylesheet" href="https://unpkg.com/bpmn-js@18.6.2/dist/assets/diagram-js.css">
+    <link rel="stylesheet" href="https://unpkg.com/bpmn-js@18.6.2/dist/assets/bpmn-js.css">
+    <link rel="stylesheet" href="https://unpkg.com/bpmn-js-differ@3.0.2/assets/diff.css">
+    <link rel="stylesheet" href="./styles.css"/>
+</head>
+<body>
+<div class="main-content">
+    <div class="io-control">
+        <div class="io-control-mode">
+            <button id="mode-manual">Manual</button>
+            <button id="mode-git" class="active">Git</button>
+        </div>
+
+        <div id="manual-controls" class="io-control-section" style="display: none;">
+            <div class="io-control-group">
+                <label for="old-file" class="io-control-label">Old</label>
+                <input id="old-file" type="file" accept=".bpmn,.xml"/>
+            </div>
+            <div class="io-control-group">
+                <label for="new-file" class="io-control-label">New</label>
+                <input id="new-file" type="file" accept=".bpmn,.xml"/>
+            </div>
+        </div>
+
+        <div id="git-controls" class="io-control-section">
+            <div class="io-control-group">
+                <label for="git-file" class="io-control-label">File</label>
+                <select id="git-file"></select>
+            </div>
+            <div class="io-control-group">
+                <label for="git-branch-old" class="io-control-label">Old Branch</label>
+                <select id="git-branch-old"></select>
+            </div>
+            <div class="io-control-group">
+                <label for="git-branch-new" class="io-control-label">New Branch</label>
+                <select id="git-branch-new"></select>
+            </div>
+        </div>
+
+        <div class="io-control-group">
+            <button id="run-diff" disabled>Compare</button>
+            <button id="clear" disabled>Clear</button>
+        </div>
+        <div class="io-control-group" id="diff-toggle-group" style="display: none;">
+            <label>
+                <input type="checkbox" id="show-diff" checked>
+                Show Diff
+            </label>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+        <div class="canvas-container">
+            <div id="canvas-left" class="canvas"></div>
+            <div id="canvas-right" class="canvas"></div>
+            <div class="io-alerts">
+                <div class="io-alert io-alert-info" id="no-diagram-alert">
+                    Select two BPMN diagrams to compare them.
+                </div>
+            </div>
+        </div>
+
+        <aside class="diff-items" id="diff-items-container" style="display: none;">
+            <div class="diff-items-header">
+                Diff Details
+            </div>
+            <ul id="changes-list"></ul>
+        </aside>
+    </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

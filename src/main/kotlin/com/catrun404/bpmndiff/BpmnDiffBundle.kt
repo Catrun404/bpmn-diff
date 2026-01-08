@@ -1,13 +1,13 @@
-package com.github.catrun404.bpmndiff
+package com.catrun404.bpmndiff
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.PropertyKey
 
 @NonNls
-private const val BUNDLE = "messages.MyBundle"
+private const val BUNDLE = "messages.BpmnDiffBundle"
 
-object MyBundle : DynamicBundle(BUNDLE) {
+object BpmnDiffBundle : DynamicBundle(BUNDLE) {
 
     @JvmStatic
     fun message(@PropertyKey(resourceBundle = BUNDLE) key: String, vararg params: Any) =
