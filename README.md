@@ -1,8 +1,8 @@
 # bpmn-diff
 
 ![Build](https://github.com/Catrun404/bpmn-diff/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
+[![Version](https://img.shields.io/jetbrains/plugin/v/29687-bpmn-diff.svg)](https://plugins.jetbrains.com/plugin/29687-bpmn-diff)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/29687-bpmn-diff.svg)](https://plugins.jetbrains.com/plugin/29687-bpmn-diff)
 
 # bpmn-diff IntelliJ Platform Plugin
 
@@ -28,9 +28,9 @@ This bpmn-diff IntelliJ Platform Plugin that compares two BPMN files and visuali
 
 - Using JetBrains Marketplace:
 
-  Go to [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) and install it by clicking the <kbd>Install to ...</kbd> button in case your IDE is running.
+  Go to [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/29687-bpmn-diff) and install it by clicking the <kbd>Install to ...</kbd> button in case your IDE is running.
 
-  You can also download the [latest release](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) from JetBrains Marketplace and install it manually using
+  You can also download the [latest release](https://plugins.jetbrains.com/plugin/29687-bpmn-diff/versions) from JetBrains Marketplace and install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 - Manually:

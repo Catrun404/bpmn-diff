@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added
+- Dynamic tab titles for the bpmn-diff tool window based on the selected files
+- Option to open bpmn-diff contents in new tabs
+- Option to reload bpmn-diff tool window content
+
 ## [0.0.1] - 2026-01-09
 
 ### Added

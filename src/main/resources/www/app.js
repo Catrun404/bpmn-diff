@@ -61,6 +61,7 @@ async function switchMode(newMode) {
     ui.gitControls.style.display = isGit ? 'flex' : 'none';
     ui.manualControls.style.display = isGit ? 'none' : 'flex';
 
+    updateTabTitle();
     if (isGit) {
         await loadGitInfo();
     } else {
@@ -83,8 +84,33 @@ const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function triggerDiff() {
+    updateTabTitle();
     if (state.isReady) {
         ui.runBtn.click();
+    }
+}
+
+function updateTabTitle() {
+    let title = 'bpmn-diff';
+    if (state.mode === 'git') {
+        const file = ui.gitFileInput.value;
+        if (file) {
+            const fileName = file.split('/').pop();
+            title = `bpmn-diff: ${fileName}`;
+        }
+    } else {
+        const oldFile = ui.oldFileInput.files?.[0]?.name;
+        const newFile = ui.newFileInput.files?.[0]?.name;
+        if (oldFile && newFile) {
+            title = `bpmn-diff: ${oldFile} vs ${newFile}`;
+        } else if (newFile) {
+            title = `bpmn-diff: ${newFile}`;
+        } else if (oldFile) {
+            title = `bpmn-diff: ${oldFile}`;
+        }
+    }
+    if (window.setTabTitle) {
+        window.setTabTitle(title);
     }
 }
 
@@ -246,6 +272,7 @@ ui.clearBtn.addEventListener('click', () => {
     state.currentDiff = null;
     ui.changesList.innerHTML = '';
     updateUIState();
+    updateTabTitle();
     ui.noDiagramAlert.style.display = 'block';
     ui.diffItemsContainer.style.display = 'none';
     ui.diffToggleGroup.style.display = 'none';

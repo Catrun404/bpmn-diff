@@ -1,11 +1,18 @@
 package com.catrun404.bpmndiff.toolWindow
 
+import com.catrun404.bpmndiff.BpmnDiffBundle
 import com.catrun404.bpmndiff.settings.BpmnDiffSettingsState
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.jcef.JBCefBrowser
+import com.intellij.ui.jcef.JBCefBrowserBase
+import com.intellij.ui.jcef.JBCefJSQuery
 import git4idea.commands.Git
 import git4idea.commands.GitCommand
 import git4idea.commands.GitLineHandler
@@ -15,6 +22,7 @@ import org.cef.CefApp
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.callback.CefCallback
+import org.cef.handler.CefLoadHandlerAdapter
 import org.cef.handler.CefResourceHandlerAdapter
 import org.cef.misc.IntRef
 import org.cef.misc.StringRef
@@ -27,9 +35,55 @@ import javax.swing.JComponent
 
 class BpmnDiffToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val bpmnDiffToolWindow = BpmnDiffToolWindow(project)
-        val content = ContentFactory.getInstance().createContent(bpmnDiffToolWindow.getContent(), "", false)
+        addNewTab(project, toolWindow)
+        setupTitleActions(toolWindow)
+    }
+
+    private fun addNewTab(project: Project, toolWindow: ToolWindow) {
+        var browserComponent: JComponent? = null
+        val bpmnDiffToolWindow = BpmnDiffToolWindow(project) { newTitle ->
+            val content = toolWindow.contentManager.contents.find { it.component == browserComponent }
+            if (content != null) {
+                content.displayName = newTitle
+            }
+        }
+        browserComponent = bpmnDiffToolWindow.getContent()
+        val content = ContentFactory.getInstance().createContent(
+            browserComponent,
+            "bpmn-diff",
+            false
+        )
+        content.putUserData(BpmnDiffToolWindow.KEY, bpmnDiffToolWindow)
         toolWindow.contentManager.addContent(content)
+        toolWindow.contentManager.setSelectedContent(content)
+    }
+
+    private fun setupTitleActions(toolWindow: ToolWindow) {
+        toolWindow.setTitleActions(
+            listOf(
+                object : AnAction(
+                    BpmnDiffBundle.message("action.add.tab.text"),
+                    BpmnDiffBundle.message("action.add.tab.description"),
+                    AllIcons.General.Add
+                ) {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        val project = e.project ?: return
+                        addNewTab(project, toolWindow)
+                    }
+                },
+                object : AnAction(
+                    BpmnDiffBundle.message("action.reload.text"),
+                    BpmnDiffBundle.message("action.reload.description"),
+                    AllIcons.Actions.Refresh
+                ) {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        val selectedContent = toolWindow.contentManager.selectedContent
+                        val bpmnDiffToolWindow =
+                            selectedContent?.getUserData<BpmnDiffToolWindow>(BpmnDiffToolWindow.KEY)
+                        bpmnDiffToolWindow?.reload()
+                    }
+                }
+            ))
     }
 
     override fun shouldBeAvailable(project: Project) = true
@@ -44,11 +98,28 @@ private const val BPMN_DIFF_SERVICE_URL = "$SCHEME://$SERVICE_DOMAIN/"
 
 private const val BPMN_DIFF_SERVICE_PAGE_URL = BPMN_DIFF_SERVICE_URL + "index.html"
 
-class BpmnDiffToolWindow(private val project: Project) {
+class BpmnDiffToolWindow(private val project: Project, private val onTitleChange: (String) -> Unit) {
     private val browser = JBCefBrowser()
+    private val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+
+    companion object {
+        val KEY = Key.create<BpmnDiffToolWindow>("BpmnDiffToolWindow")
+    }
 
     init {
         setupResourceHandler()
+        jsQuery.addHandler { text ->
+            onTitleChange(text)
+            null
+        }
+        browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
+            override fun onLoadEnd(browser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
+                if (frame?.isMain == true) {
+                    val script = "window.setTabTitle = function(title) { ${jsQuery.inject("title")} };"
+                    browser?.executeJavaScript(script, browser.url, 0)
+                }
+            }
+        }, browser.cefBrowser)
     }
 
     private fun setupResourceHandler() {
@@ -67,6 +138,10 @@ class BpmnDiffToolWindow(private val project: Project) {
     fun getContent(): JComponent {
         browser.loadURL(BPMN_DIFF_SERVICE_PAGE_URL)
         return browser.component
+    }
+
+    fun reload() {
+        browser.cefBrowser.reload()
     }
 }
 
