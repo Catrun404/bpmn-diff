@@ -72,6 +72,10 @@ class BpmnDiffToolWindow(private val project: Project) {
 
 private const val APPLICATION_JSON_TYPE = "application/json"
 
+private const val TEXT_PLAIN_TYPE = "text/plain"
+
+private const val GIT_NAME_ONLY_FLAG = "--name-only"
+
 class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandlerAdapter() {
     private var inputStream: InputStream? = null
     private var mimeType: String? = null
@@ -102,7 +106,7 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
                 path.endsWith(".js") -> "application/javascript"
                 path.endsWith(".css") -> "text/css"
                 path.endsWith(".bpmn") -> "application/xml"
-                else -> "text/plain"
+                else -> TEXT_PLAIN_TYPE
             }
             callback.Continue()
             return true
@@ -118,12 +122,16 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
             key to value
         }
 
+        fun setResponse(content: String, contentType: String = APPLICATION_JSON_TYPE) {
+            inputStream = ByteArrayInputStream(content.toByteArray())
+            mimeType = contentType
+        }
+
         when {
             path == "api/settings" -> {
                 val settings = BpmnDiffSettingsState.getInstance(project).state
                 val json = "{\"defaultOldBranch\": \"${settings.defaultOldBranch}\"}"
-                inputStream = ByteArrayInputStream(json.toByteArray())
-                mimeType = APPLICATION_JSON_TYPE
+                setResponse(json)
             }
 
             path == "api/branches" -> {
@@ -138,11 +146,9 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
                         "{\"name\":\"$name\",\"current\":$isCurrent}"
                     }
                     val json = "[" + branches.joinToString(",") + "]"
-                    inputStream = ByteArrayInputStream(json.toByteArray())
-                    mimeType = APPLICATION_JSON_TYPE
+                    setResponse(json)
                 } else {
-                    inputStream = ByteArrayInputStream("{\"error\": \"Failed to list branches\"}".toByteArray())
-                    mimeType = APPLICATION_JSON_TYPE
+                    setResponse("{\"error\": \"Failed to list branches\"}")
                 }
             }
 
@@ -152,25 +158,15 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
                 val oldRef = params["oldRef"]
                 val newRef = params["newRef"]
 
-                val handler = if (!oldRef.isNullOrBlank() && !newRef.isNullOrBlank()) {
-                    val h = GitLineHandler(project, repository.root, GitCommand.DIFF)
-                    h.addParameters("--name-only", oldRef, newRef)
-                    h
-                } else {
-                    val h = GitLineHandler(project, repository.root, GitCommand.LS_TREE)
-                    h.addParameters("-r", "HEAD", "--name-only")
-                    h
-                }
+                val handler = buildFilesDiffHandler(oldRef, newRef, repository)
 
                 val result = Git.getInstance().runCommand(handler)
                 if (result.success()) {
                     val files = result.output.filter { it.endsWith(".bpmn") }.distinct()
                     val json = "[" + files.joinToString(",") { "\"$it\"" } + "]"
-                    inputStream = ByteArrayInputStream(json.toByteArray())
-                    mimeType = APPLICATION_JSON_TYPE
+                    setResponse(json)
                 } else {
-                    inputStream = ByteArrayInputStream("{\"error\": \"Failed to list files\"}".toByteArray())
-                    mimeType = APPLICATION_JSON_TYPE
+                    setResponse("{\"error\": \"Failed to list files\"}")
                 }
             }
 
@@ -184,15 +180,33 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
                 handler.addParameters("$ref:$filePath")
                 val result = Git.getInstance().runCommand(handler)
                 if (result.success()) {
-                    inputStream = ByteArrayInputStream(result.outputAsJoinedString.toByteArray())
-                    mimeType = "text/plain"
+                    setResponse(result.outputAsJoinedString, TEXT_PLAIN_TYPE)
                 } else {
-                    inputStream = ByteArrayInputStream("{\"error\": \"Failed to get file content\"}".toByteArray())
-                    mimeType = APPLICATION_JSON_TYPE
+                    setResponse("", TEXT_PLAIN_TYPE)
                 }
             }
         }
         callback.Continue()
+    }
+
+    private fun buildFilesDiffHandler(
+        oldRef: String?,
+        newRef: String?,
+        repository: GitRepository
+    ): GitLineHandler = if (!oldRef.isNullOrBlank() && !newRef.isNullOrBlank()) {
+        if (oldRef == newRef) {
+            val h = GitLineHandler(project, repository.root, GitCommand.LS_TREE)
+            h.addParameters("-r", newRef, GIT_NAME_ONLY_FLAG)
+            h
+        } else {
+            val h = GitLineHandler(project, repository.root, GitCommand.DIFF)
+            h.addParameters(GIT_NAME_ONLY_FLAG, oldRef, newRef)
+            h
+        }
+    } else {
+        val h = GitLineHandler(project, repository.root, GitCommand.LS_TREE)
+        h.addParameters("-r", "HEAD", GIT_NAME_ONLY_FLAG)
+        h
     }
 
     override fun getResponseHeaders(response: CefResponse, responseLength: IntRef, redirectUrl: StringRef) {

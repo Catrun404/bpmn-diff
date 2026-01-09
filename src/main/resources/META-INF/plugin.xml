@@ -10,7 +10,8 @@
     <resource-bundle>messages.BpmnDiffBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.catrun404.bpmndiff.toolWindow.BpmnDiffToolWindowFactory" id="bpmn-diff" anchor="bottom"/>
+        <toolWindow factoryClass="com.catrun404.bpmndiff.toolWindow.BpmnDiffToolWindowFactory" id="bpmn-diff"
+                    icon="com.catrun404.bpmndiff.BpmnDiffIcons.ToolWindow" anchor="bottom"/>
         <projectConfigurable
                 parentId="tools"
                 instance="com.catrun404.bpmndiff.settings.BpmnDiffConfigurable"

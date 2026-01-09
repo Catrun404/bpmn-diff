@@ -68,6 +68,20 @@ async function switchMode(newMode) {
     }
 }
 
+const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
+                  id="Definitions_1" 
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="EmptyProcess_0" isExecutable="false" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="EmptyProcess_0">
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
 async function triggerDiff() {
     if (state.isReady) {
         ui.runBtn.click();
@@ -187,9 +201,9 @@ function syncViewers() {
         const li = ui.changesList.querySelector(`li[data-id="${element.id}"]`);
         if (li) {
             ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
-            
+
             li.classList.add('selected');
-            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            li.scrollIntoView({behavior: 'smooth', block: 'nearest'});
         }
     }
 
@@ -266,11 +280,11 @@ ui.runBtn.addEventListener('click', async () => {
                 fetch(`/api/content?ref=${oldRef}&path=${file}`).then(r => {
                     if (!r.ok) throw new Error(`Failed to fetch old content: ${r.status}`);
                     return r.text();
-                }),
+                }).then(text => text.trim() === '' ? EMPTY_BPMN : text),
                 fetch(`/api/content?ref=${newRef}&path=${file}`).then(r => {
                     if (!r.ok) throw new Error(`Failed to fetch new content: ${r.status}`);
                     return r.text();
-                })
+                }).then(text => text.trim() === '' ? EMPTY_BPMN : text)
             ]);
         } catch (err) {
             console.error(err);
@@ -287,6 +301,7 @@ ui.runBtn.addEventListener('click', async () => {
 
     try {
         console.log('Calculating diff...');
+        ui.changesList.innerHTML = '';
         const [oldDefs, newDefs] = await Promise.all([
             viewers.moddle.fromXML(state.oldXml).then(r => r.rootElement),
             viewers.moddle.fromXML(state.newXml).then(r => r.rootElement),
@@ -295,22 +310,20 @@ ui.runBtn.addEventListener('click', async () => {
         state.currentDiff = bpmnDiff(oldDefs, newDefs) || {};
         console.log('Diff calculated:', state.currentDiff);
 
+        ui.noDiagramAlert.style.display = 'none';
+        ui.diffItemsContainer.style.display = 'flex';
+        ui.diffToggleGroup.style.display = 'block';
+
         console.log('Importing XML into viewers...');
         await Promise.all([
             viewers.left.importXML(state.oldXml),
             viewers.right.importXML(state.newXml)
         ]);
 
-        ui.noDiagramAlert.style.display = 'none';
-        ui.diffItemsContainer.style.display = 'flex';
-        ui.diffToggleGroup.style.display = 'block';
-
         viewers.left.get('canvas').zoom('fit-viewport');
         viewers.right.get('canvas').zoom('fit-viewport');
 
-        console.log('Rendering diff markers...');
         renderDiff(state.currentDiff, ui.showDiffCheckbox.checked);
-        console.log('Diff rendered successfully.');
     } catch (err) {
         console.error('Error during diff/render:', err);
         alert('Failed to diff or render BPMN. See console for details.');
@@ -369,15 +382,10 @@ function renderDiff(diff, show) {
         const isProcess = type === 'Process';
         const skipMarkers = isProcess && (action === 'added' || action === 'removed');
 
-        let displayAction = action;
-        if (isProcess && (action === 'added' || action === 'removed')) {
-            displayAction = 'changed';
-        }
-
         let markerClass;
-        if (displayAction === 'added') markerClass = 'diff-added';
-        else if (displayAction === 'removed') markerClass = 'diff-removed';
-        else if (displayAction === 'layoutChanged') markerClass = 'diff-layout-changed';
+        if (action === 'added') markerClass = 'diff-added';
+        else if (action === 'removed') markerClass = 'diff-removed';
+        else if (action === 'layoutChanged') markerClass = 'diff-layout-changed';
         else markerClass = 'diff-changed';
 
         if (show && !skipMarkers) {
@@ -390,7 +398,7 @@ function renderDiff(diff, show) {
         }
 
         const li = document.createElement('li');
-        li.className = displayAction;
+        li.className = action;
         li.dataset.id = id;
 
         const labelText = name ? `${name} (id=${id})` : `id=${id}`;
@@ -407,7 +415,7 @@ function renderDiff(diff, show) {
         }
 
         li.innerHTML = `
-            <span class="diff-type">${displayAction}</span>
+            <span class="diff-type">${action}</span>
             <span class="diff-label">${type}: ${labelText}</span>
             ${details ? `<span class="diff-details">${details.replace(/\n/g, '<br/>')}</span>` : ''}
         `;
