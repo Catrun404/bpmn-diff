@@ -1,6 +1,6 @@
-import BpmnViewer from "https://esm.sh/bpmn-js@18.6.2/lib/NavigatedViewer";
-import BpmnModdle from "https://esm.sh/bpmn-moddle@9.0.2";
-import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.0.2";
+import BpmnViewer from "https://esm.sh/bpmn-js@18.10.1/lib/NavigatedViewer";
+import BpmnModdle from "https://esm.sh/bpmn-moddle@9.0.4";
+import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.1.0";
 
 const ui = {
     modeManualBtn: document.getElementById('mode-manual'),
