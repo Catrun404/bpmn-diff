@@ -3,8 +3,6 @@ import BpmnModdle from "https://esm.sh/bpmn-moddle@9.0.4";
 import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.1.0";
 
 const ui = {
-    modeManualBtn: document.getElementById('mode-manual'),
-    modeGitBtn: document.getElementById('mode-git'),
     manualControls: document.getElementById('manual-controls'),
     gitControls: document.getElementById('git-controls'),
 
@@ -56,8 +54,6 @@ async function switchMode(newMode) {
     state.mode = newMode;
     const isGit = newMode === 'git';
 
-    ui.modeGitBtn.classList.toggle('active', isGit);
-    ui.modeManualBtn.classList.toggle('active', !isGit);
     ui.gitControls.style.display = isGit ? 'flex' : 'none';
     ui.manualControls.style.display = isGit ? 'none' : 'flex';
 
@@ -68,6 +64,8 @@ async function switchMode(newMode) {
         updateUIState();
     }
 }
+
+window.switchModeFromIJ = switchMode;
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
@@ -238,9 +236,6 @@ function syncViewers() {
 }
 
 syncViewers();
-
-ui.modeManualBtn.addEventListener('click', async () => await switchMode('manual'));
-ui.modeGitBtn.addEventListener('click', async () => await switchMode('git'));
 
 ui.oldFileInput.addEventListener('change', async (e) => {
     state.oldXml = await readFileAsText(e.target.files?.[0]);

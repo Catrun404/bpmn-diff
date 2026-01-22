@@ -8,8 +8,6 @@
 
 <!-- Plugin description -->
 This bpmn-diff IntelliJ Platform Plugin that compares two BPMN files and visualizes the differences.
-<!-- Plugin description end -->
-
 
 ## Features
 
@@ -18,6 +16,8 @@ This bpmn-diff IntelliJ Platform Plugin that compares two BPMN files and visuali
 - **Synchronized scrolling and zooming** between diagrams.
 - **Git integration**: compare diagrams across different branches or commits.
 - **Manual mode**: upload or drop BPMN files for comparison.
+
+<!-- Plugin description end -->
 
 ## Installation
 

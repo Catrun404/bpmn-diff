@@ -4,7 +4,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Move mode switching buttons into tool window actions
+
+## [0.0.2] - 2026-01-09
+
 ### Added
+
 - Dynamic tab titles for the bpmn-diff tool window based on the selected files
 - Option to open bpmn-diff contents in new tabs
 - Option to reload bpmn-diff tool window content
@@ -26,5 +33,6 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/v0.0.1

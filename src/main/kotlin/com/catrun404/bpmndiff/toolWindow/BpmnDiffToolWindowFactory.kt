@@ -1,10 +1,11 @@
 package com.catrun404.bpmndiff.toolWindow
 
 import com.catrun404.bpmndiff.BpmnDiffBundle
+import com.catrun404.bpmndiff.settings.BpmnDiffConfigurable
 import com.catrun404.bpmndiff.settings.BpmnDiffSettingsState
 import com.intellij.icons.AllIcons
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.wm.ToolWindow
@@ -13,6 +14,7 @@ import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
+import com.intellij.util.ui.JBUI
 import git4idea.commands.Git
 import git4idea.commands.GitCommand
 import git4idea.commands.GitLineHandler
@@ -28,28 +30,31 @@ import org.cef.misc.IntRef
 import org.cef.misc.StringRef
 import org.cef.network.CefRequest
 import org.cef.network.CefResponse
+import java.awt.BorderLayout
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.URLConnection
 import javax.swing.JComponent
+import javax.swing.JPanel
 
 class BpmnDiffToolWindowFactory : ToolWindowFactory {
+
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         addNewTab(project, toolWindow)
         setupTitleActions(toolWindow)
     }
 
     private fun addNewTab(project: Project, toolWindow: ToolWindow) {
-        var browserComponent: JComponent? = null
-        val bpmnDiffToolWindow = BpmnDiffToolWindow(project) { newTitle ->
-            val content = toolWindow.contentManager.contents.find { it.component == browserComponent }
+        var contentPanel: JComponent? = null
+        val bpmnDiffToolWindow = BpmnDiffToolWindow(project, toolWindow) { newTitle ->
+            val content = toolWindow.contentManager.contents.find { it.component == contentPanel }
             if (content != null) {
                 content.displayName = newTitle
             }
         }
-        browserComponent = bpmnDiffToolWindow.getContent()
+        contentPanel = bpmnDiffToolWindow.getContent()
         val content = ContentFactory.getInstance().createContent(
-            browserComponent,
+            contentPanel,
             "bpmn-diff",
             false
         )
@@ -72,15 +77,13 @@ class BpmnDiffToolWindowFactory : ToolWindowFactory {
                     }
                 },
                 object : AnAction(
-                    BpmnDiffBundle.message("action.reload.text"),
-                    BpmnDiffBundle.message("action.reload.description"),
-                    AllIcons.Actions.Refresh
+                    BpmnDiffBundle.message("action.settings.text"),
+                    BpmnDiffBundle.message("action.settings.description"),
+                    AllIcons.General.GearPlain
                 ) {
                     override fun actionPerformed(e: AnActionEvent) {
-                        val selectedContent = toolWindow.contentManager.selectedContent
-                        val bpmnDiffToolWindow =
-                            selectedContent?.getUserData<BpmnDiffToolWindow>(BpmnDiffToolWindow.KEY)
-                        bpmnDiffToolWindow?.reload()
+                        val project = e.project ?: return
+                        ShowSettingsUtil.getInstance().showSettingsDialog(project, BpmnDiffConfigurable::class.java)
                     }
                 }
             ))
@@ -98,7 +101,11 @@ private const val BPMN_DIFF_SERVICE_URL = "$SCHEME://$SERVICE_DOMAIN/"
 
 private const val BPMN_DIFF_SERVICE_PAGE_URL = BPMN_DIFF_SERVICE_URL + "index.html"
 
-class BpmnDiffToolWindow(private val project: Project, private val onTitleChange: (String) -> Unit) {
+class BpmnDiffToolWindow(
+    private val project: Project,
+    private val toolWindow: ToolWindow,
+    private val onTitleChange: (String) -> Unit
+) {
     private val browser = JBCefBrowser()
     private val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
 
@@ -137,11 +144,64 @@ class BpmnDiffToolWindow(private val project: Project, private val onTitleChange
 
     fun getContent(): JComponent {
         browser.loadURL(BPMN_DIFF_SERVICE_PAGE_URL)
-        return browser.component
+
+        val panel = JPanel(BorderLayout())
+        panel.border = JBUI.Borders.empty()
+
+        val toolbar = createToolbar()
+        panel.add(toolbar.component, BorderLayout.NORTH)
+        panel.add(browser.component, BorderLayout.CENTER)
+
+        return panel
+    }
+
+    private fun createToolbar(): ActionToolbar {
+        val actionGroup = DefaultActionGroup()
+
+        actionGroup.add(object : AnAction(
+            BpmnDiffBundle.message("action.mode.git.text"),
+            BpmnDiffBundle.message("action.mode.git.description"),
+            AllIcons.Vcs.Branch
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                switchMode("git")
+            }
+        })
+
+        actionGroup.add(object : AnAction(
+            BpmnDiffBundle.message("action.mode.manual.text"),
+            BpmnDiffBundle.message("action.mode.manual.description"),
+            AllIcons.Actions.Upload
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                switchMode("manual")
+            }
+        })
+
+        actionGroup.addSeparator()
+
+        actionGroup.add(object : AnAction(
+            BpmnDiffBundle.message("action.reload.text"),
+            BpmnDiffBundle.message("action.reload.description"),
+            AllIcons.Actions.Refresh
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                reload()
+            }
+        })
+
+        val toolbar = ActionManager.getInstance().createActionToolbar("BpmnDiffToolbar", actionGroup, true)
+        toolbar.targetComponent = null
+        return toolbar
     }
 
     fun reload() {
         browser.cefBrowser.reload()
+    }
+
+    fun switchMode(mode: String) {
+        val script = "if (window.switchModeFromIJ) { window.switchModeFromIJ('$mode'); }"
+        browser.cefBrowser.executeJavaScript(script, browser.cefBrowser.url, 0)
     }
 }
 
