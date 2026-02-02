@@ -4,19 +4,19 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class BpmnDiffSettingsTest : BasePlatformTestCase() {
 
-    fun testDefaultOldBranch() {
+    fun testDefaultLeftBranch() {
         val settings = BpmnDiffSettingsState.getInstance(project).state
-        assertEquals("dev", settings.defaultOldBranch)
+        assertEquals("dev", settings.defaultLeftBranch)
     }
 
-    fun testChangeOldBranch() {
+    fun testChangeLeftBranch() {
         val settings = BpmnDiffSettingsState.getInstance(project).state
-        settings.defaultOldBranch = "feature-x"
+        settings.defaultLeftBranch = "feature-x"
         
         val updatedSettings = BpmnDiffSettingsState.getInstance(project).state
-        assertEquals("feature-x", updatedSettings.defaultOldBranch)
+        assertEquals("feature-x", updatedSettings.defaultLeftBranch)
         
         // Reset for other tests
-        settings.defaultOldBranch = "dev"
+        settings.defaultLeftBranch = "dev"
     }
 }

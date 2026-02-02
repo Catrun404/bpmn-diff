@@ -2,71 +2,6 @@ import BpmnViewer from "https://esm.sh/bpmn-js@18.10.1/lib/NavigatedViewer";
 import BpmnModdle from "https://esm.sh/bpmn-moddle@9.0.4";
 import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.1.0";
 
-const ui = {
-    manualControls: document.getElementById('manual-controls'),
-    gitControls: document.getElementById('git-controls'),
-
-    oldFileInput: document.getElementById('old-file'),
-    newFileInput: document.getElementById('new-file'),
-
-    gitFileInput: document.getElementById('git-file'),
-    gitBranchOldInput: document.getElementById('git-branch-old'),
-    gitBranchNewInput: document.getElementById('git-branch-new'),
-
-    runBtn: document.getElementById('run-diff'),
-    clearBtn: document.getElementById('clear'),
-    changesList: document.getElementById('changes-list'),
-    noDiagramAlert: document.getElementById('no-diagram-alert'),
-    diffItemsContainer: document.getElementById('diff-items-container'),
-    showDiffCheckbox: document.getElementById('show-diff'),
-    diffToggleGroup: document.getElementById('diff-toggle-group'),
-
-    canvasLeft: '#canvas-left',
-    canvasRight: '#canvas-right'
-};
-
-const state = {
-    mode: 'git', // 'git' | 'manual'
-    oldXml: null,
-    newXml: null,
-    currentDiff: null,
-    isDiffing: false,
-
-    get isReady() {
-        return this.mode === 'git'
-            ? !!ui.gitFileInput.value
-            : (!!this.oldXml && !!this.newXml);
-    }
-};
-
-const viewers = {
-    left: new BpmnViewer({container: ui.canvasLeft}),
-    right: new BpmnViewer({container: ui.canvasRight}),
-    moddle: new BpmnModdle()
-};
-
-function updateUIState() {
-    ui.runBtn.disabled = !state.isReady;
-    ui.clearBtn.disabled = state.mode === 'git' ? false : !(state.oldXml || state.newXml);
-}
-
-async function switchMode(newMode) {
-    state.mode = newMode;
-    const isGit = newMode === 'git';
-
-    ui.gitControls.style.display = isGit ? 'flex' : 'none';
-    ui.manualControls.style.display = isGit ? 'none' : 'flex';
-
-    updateTabTitle();
-    if (isGit) {
-        await loadGitInfo();
-    } else {
-        updateUIState();
-    }
-}
-
-window.switchModeFromIJ = switchMode;
-
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
                   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
@@ -81,124 +16,144 @@ const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
+const ui = {
+    changesList: document.getElementById('changes-list'),
+    noDiagramAlert: document.getElementById('no-diagram-alert'),
+    diffItemsContainer: document.getElementById('diff-items-container'),
+
+    canvasLeft: '#canvas-left',
+    canvasRight: '#canvas-right'
+};
+
+const state = {
+    mode: 'git', // 'git' | 'manual'
+    leftXml: null,
+    rightXml: null,
+    currentDiff: null,
+    isDiffing: false,
+
+    gitFile: null,
+    gitLeftBranch: null,
+    gitRightBranch: null,
+
+    manualLeftFileName: null,
+    manualRightFileName: null,
+    showDiff: true,
+
+    get isReady() {
+        return this.mode === 'git'
+            ? !!this.gitFile && !!this.gitLeftBranch && !!this.gitRightBranch
+            : (!!this.leftXml && !!this.rightXml);
+    }
+};
+
+const viewers = {
+    left: new BpmnViewer({container: ui.canvasLeft}),
+    right: new BpmnViewer({container: ui.canvasRight}),
+    moddle: new BpmnModdle()
+};
+
+async function switchMode(newMode) {
+    state.mode = newMode;
+    const isGit = newMode === 'git';
+
+    if (window.setSelectedFile) {
+        window.setSelectedFile(isGit ? (state.gitFile || '') : '');
+    }
+
+    updateTabTitle();
+}
+
+window.switchModeFromIJ = switchMode;
+
+window.setGitSelection = (leftBranch, rightBranch, file) => {
+    console.log('Git selection updated from IJ:', {leftBranch, rightBranch, file});
+    state.gitLeftBranch = leftBranch;
+    state.gitRightBranch = rightBranch;
+    state.gitFile = file;
+
+    if (window.setSelectedFile) {
+        window.setSelectedFile(file || '');
+    }
+    triggerDiff();
+};
+
+window.setManualSelection = (side, base64Content, fileName) => {
+    console.log(`Manual selection updated from IJ: ${side} = ${fileName}`);
+    const binaryString = atob(base64Content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    const content = new TextDecoder('utf-8').decode(bytes);
+
+    if (side === 'left') {
+        state.leftXml = content;
+        state.manualLeftFileName = fileName;
+    } else {
+        state.rightXml = content;
+        state.manualRightFileName = fileName;
+    }
+    triggerDiff();
+};
+
+window.setShowDiff = (show) => {
+    console.log('Show diff updated from IJ:', show);
+    state.showDiff = show;
+    if (state.currentDiff) {
+        renderDiff(state.currentDiff, state.showDiff);
+    }
+};
+
+window.initFromIJ = (mode, leftBranch, rightBranch, file, showDiff) => {
+    console.log('Initializing from IJ:', {mode, leftBranch, rightBranch, file, showDiff});
+    state.mode = mode;
+    state.gitLeftBranch = leftBranch;
+    state.gitRightBranch = rightBranch;
+    state.gitFile = file;
+    state.showDiff = showDiff !== undefined ? showDiff : true;
+
+    const isGit = mode === 'git';
+
+    if (window.setSelectedFile) {
+        window.setSelectedFile(isGit ? (file || '') : '');
+    }
+
+    if (state.isReady) {
+        triggerDiff();
+    }
+};
+
+
 async function triggerDiff() {
     updateTabTitle();
     if (state.isReady) {
-        ui.runBtn.click();
+        await doDiff();
     }
 }
 
 function updateTabTitle() {
-    let title = 'bpmn-diff';
+    let title = 'BPMN-Diff';
     if (state.mode === 'git') {
-        const file = ui.gitFileInput.value;
+        const file = state.gitFile;
         if (file) {
             const fileName = file.split('/').pop();
-            title = `bpmn-diff: ${fileName}`;
+            title = `BPMN-Diff: ${fileName}`;
         }
     } else {
-        const oldFile = ui.oldFileInput.files?.[0]?.name;
-        const newFile = ui.newFileInput.files?.[0]?.name;
-        if (oldFile && newFile) {
-            title = `bpmn-diff: ${oldFile} vs ${newFile}`;
-        } else if (newFile) {
-            title = `bpmn-diff: ${newFile}`;
-        } else if (oldFile) {
-            title = `bpmn-diff: ${oldFile}`;
+        const leftFile = state.manualLeftFileName;
+        const rightFile = state.manualRightFileName;
+        if (leftFile && rightFile) {
+            title = `BPMN-Diff: ${leftFile} vs ${rightFile}`;
+        } else if (rightFile) {
+            title = `BPMN-Diff: ${rightFile}`;
+        } else if (leftFile) {
+            title = `BPMN-Diff: ${leftFile}`;
         }
     }
     if (window.setTabTitle) {
         window.setTabTitle(title);
     }
-}
-
-function displayErrorMessage(err) {
-    ui.noDiagramAlert.innerHTML = `
-            <div style="color: red; font-weight: bold;">Failed to load Git information.</div>
-            <div style="font-size: 12px; margin-top: 10px;">Error: ${err.message}</div>
-            <button onclick="location.reload()" style="margin-top: 10px; padding: 5px 10px;">Retry</button>
-        `;
-}
-
-async function loadGitInfo(retryCount = 0) {
-    console.log(`Loading Git info (attempt ${retryCount + 1})...`);
-    try {
-        const [branchesResponse, settingsResponse] = await Promise.all([
-            fetch('/api/branches'),
-            fetch('/api/settings')
-        ]);
-
-        if (!branchesResponse.ok) throw new Error(`Failed to fetch branches: ${branchesResponse.status}`);
-        if (!settingsResponse.ok) throw new Error(`Failed to fetch settings: ${settingsResponse.status}`);
-
-        const [branches, settings] = await Promise.all([
-            branchesResponse.json(),
-            settingsResponse.json()
-        ]);
-
-        console.log('Git info loaded:', {branchesCount: branches ? branches.length : 0, settings});
-
-        if (branches.error) {
-            if ((branches.error.includes('No git repository found') || branches.error.includes('initializing')) && retryCount < 5) {
-                console.warn(`${branches.error}, retrying in 2 seconds...`);
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                return loadGitInfo(retryCount + 1);
-            }
-            throw new Error(branches.error);
-        }
-
-        const branchNames = branches.map(b => b.name);
-        const currentBranch = branches.find(b => b.current)?.name;
-
-        ui.gitBranchOldInput.innerHTML = branchNames.map(b => `<option value="${b}">${b}</option>`).join('');
-        ui.gitBranchNewInput.innerHTML = branchNames.map(b => `<option value="${b}">${b}</option>`).join('');
-
-        const defaultOld = settings.defaultOldBranch || 'dev';
-        if (branchNames.includes(defaultOld)) {
-            ui.gitBranchOldInput.value = defaultOld;
-        } else if (branchNames.includes('master')) {
-            ui.gitBranchOldInput.value = 'master';
-        } else if (branchNames.includes('main')) {
-            ui.gitBranchOldInput.value = 'main';
-        }
-
-        if (currentBranch) {
-            ui.gitBranchNewInput.value = currentBranch;
-        }
-
-        await updateFileList();
-
-    } catch (err) {
-        console.error('Failed to load git info:', err);
-        displayErrorMessage(err);
-    }
-}
-
-async function updateFileList() {
-    const oldRef = ui.gitBranchOldInput.value;
-    const newRef = ui.gitBranchNewInput.value;
-    console.log(`Updating file list for ${oldRef} vs ${newRef}...`);
-    if (!oldRef || !newRef) {
-        console.warn('Cannot update file list: missing branches');
-        return;
-    }
-
-    const response = await fetch(`/api/files?oldRef=${oldRef}&newRef=${newRef}`);
-    if (!response.ok) {
-        console.error('Failed to fetch files:', response.status);
-        throw new Error(`Failed to fetch files: ${response.status}`);
-    }
-
-    const files = await response.json();
-    const previousValue = ui.gitFileInput.value;
-    ui.gitFileInput.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join('');
-
-    if (files.includes(previousValue)) {
-        ui.gitFileInput.value = previousValue;
-    }
-
-    updateUIState();
-    await triggerDiff();
 }
 
 function syncViewers() {
@@ -224,7 +179,8 @@ function syncViewers() {
 
         const li = ui.changesList.querySelector(`li[data-id="${element.id}"]`);
         if (li) {
-            ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
+            ui.changesList.querySelectorAll('li')
+                .forEach(el => el.classList.remove('selected'));
 
             li.classList.add('selected');
             li.scrollIntoView({behavior: 'smooth', block: 'nearest'});
@@ -237,74 +193,29 @@ function syncViewers() {
 
 syncViewers();
 
-ui.oldFileInput.addEventListener('change', async (e) => {
-    state.oldXml = await readFileAsText(e.target.files?.[0]);
-    updateUIState();
-    await triggerDiff();
-});
-
-ui.newFileInput.addEventListener('change', async (e) => {
-    state.newXml = await readFileAsText(e.target.files?.[0]);
-    updateUIState();
-    await triggerDiff();
-});
-
-ui.gitFileInput.addEventListener('change', async () => {
-    updateUIState();
-    await triggerDiff();
-});
-
-ui.gitBranchOldInput.addEventListener('change', updateFileList);
-ui.gitBranchNewInput.addEventListener('change', updateFileList);
-
-ui.clearBtn.addEventListener('click', () => {
-    if (state.mode === 'manual') {
-        ui.oldFileInput.value = '';
-        ui.newFileInput.value = '';
-        state.oldXml = null;
-        state.newXml = null;
-    }
-    state.currentDiff = null;
-    ui.changesList.innerHTML = '';
-    updateUIState();
-    updateTabTitle();
-    ui.noDiagramAlert.style.display = 'block';
-    ui.diffItemsContainer.style.display = 'none';
-    ui.diffToggleGroup.style.display = 'none';
-    viewers.left.clear();
-    viewers.right.clear();
-});
-
-ui.showDiffCheckbox.addEventListener('change', () => {
-    if (state.currentDiff) {
-        renderDiff(state.currentDiff, ui.showDiffCheckbox.checked);
-    }
-});
-
-ui.runBtn.addEventListener('click', async () => {
+async function doDiff() {
     if (state.isDiffing) return;
 
     if (state.mode === 'git') {
-        const file = ui.gitFileInput.value;
-        const oldRef = ui.gitBranchOldInput.value;
-        const newRef = ui.gitBranchNewInput.value;
+        const file = state.gitFile;
+        const leftRef = state.gitLeftBranch;
+        const rightRef = state.gitRightBranch;
 
-        if (!file || !oldRef || !newRef) {
-            console.warn('Missing git parameters:', {file, oldRef, newRef});
+        if (!file || !leftRef || !rightRef) {
+            console.warn('Missing git parameters:', {file, leftRef, rightRef});
             return;
         }
 
         state.isDiffing = true;
-        ui.runBtn.classList.add('loading');
         try {
-            console.log(`Fetching content for ${file} (${oldRef} vs ${newRef})...`);
-            [state.oldXml, state.newXml] = await Promise.all([
-                fetch(`/api/content?ref=${oldRef}&path=${file}`).then(r => {
-                    if (!r.ok) throw new Error(`Failed to fetch old content: ${r.status}`);
+            console.log(`Fetching content for ${file} (${leftRef} vs ${rightRef})...`);
+            [state.leftXml, state.rightXml] = await Promise.all([
+                fetch(`/api/content?ref=${leftRef}&path=${file}`).then(r => {
+                    if (!r.ok) throw new Error(`Failed to fetch left content: ${r.status}`);
                     return r.text();
                 }).then(text => text.trim() === '' ? EMPTY_BPMN : text),
-                fetch(`/api/content?ref=${newRef}&path=${file}`).then(r => {
-                    if (!r.ok) throw new Error(`Failed to fetch new content: ${r.status}`);
+                fetch(`/api/content?ref=${rightRef}&path=${file}`).then(r => {
+                    if (!r.ok) throw new Error(`Failed to fetch right content: ${r.status}`);
                     return r.text();
                 }).then(text => text.trim() === '' ? EMPTY_BPMN : text)
             ]);
@@ -312,48 +223,44 @@ ui.runBtn.addEventListener('click', async () => {
             console.error(err);
             alert('Failed to fetch file content from Git: ' + err.message);
             state.isDiffing = false;
-            ui.runBtn.classList.remove('loading');
             return;
         }
     } else {
-        if (!state.oldXml || !state.newXml) return;
+        if (!state.leftXml || !state.rightXml) return;
         state.isDiffing = true;
-        ui.runBtn.classList.add('loading');
     }
 
     try {
         console.log('Calculating diff...');
         ui.changesList.innerHTML = '';
-        const [oldDefs, newDefs] = await Promise.all([
-            viewers.moddle.fromXML(state.oldXml).then(r => r.rootElement),
-            viewers.moddle.fromXML(state.newXml).then(r => r.rootElement),
+        const [leftDefs, rightDefs] = await Promise.all([
+            viewers.moddle.fromXML(state.leftXml).then(r => r.rootElement),
+            viewers.moddle.fromXML(state.rightXml).then(r => r.rootElement),
         ]);
 
-        state.currentDiff = bpmnDiff(oldDefs, newDefs) || {};
+        state.currentDiff = bpmnDiff(leftDefs, rightDefs) || {};
         console.log('Diff calculated:', state.currentDiff);
 
         ui.noDiagramAlert.style.display = 'none';
         ui.diffItemsContainer.style.display = 'flex';
-        ui.diffToggleGroup.style.display = 'block';
 
         console.log('Importing XML into viewers...');
         await Promise.all([
-            viewers.left.importXML(state.oldXml),
-            viewers.right.importXML(state.newXml)
+            viewers.left.importXML(state.leftXml),
+            viewers.right.importXML(state.rightXml)
         ]);
 
         viewers.left.get('canvas').zoom('fit-viewport');
         viewers.right.get('canvas').zoom('fit-viewport');
 
-        renderDiff(state.currentDiff, ui.showDiffCheckbox.checked);
+        renderDiff(state.currentDiff, state.showDiff);
     } catch (err) {
         console.error('Error during diff/render:', err);
         alert('Failed to diff or render BPMN. See console for details.');
     } finally {
         state.isDiffing = false;
-        ui.runBtn.classList.remove('loading');
     }
-});
+}
 
 function renderDiff(diff, show) {
     const registryLeft = viewers.left.get('elementRegistry');
@@ -402,15 +309,13 @@ function renderDiff(diff, show) {
         const name = businessObject.name || '';
 
         const isProcess = type === 'Process';
-        const skipMarkers = isProcess && (action === 'added' || action === 'removed');
-
         let markerClass;
         if (action === 'added') markerClass = 'diff-added';
         else if (action === 'removed') markerClass = 'diff-removed';
         else if (action === 'layoutChanged') markerClass = 'diff-layout-changed';
         else markerClass = 'diff-changed';
 
-        if (show && !skipMarkers) {
+        if (show && !isProcess) {
             if (registryLeft.get(id)) {
                 canvasLeft.addMarker(id, markerClass);
             }
@@ -453,60 +358,3 @@ function renderDiff(diff, show) {
         ui.changesList.appendChild(li);
     });
 }
-
-async function readFileAsText(file) {
-    if (!file) return null;
-    return new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(String(fr.result || ''));
-        fr.onerror = () => reject(fr.error);
-        fr.readAsText(file);
-    });
-}
-
-const dropZone = document.body;
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-});
-
-dropZone.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    const files = e.dataTransfer.files;
-    if (files.length >= 2) {
-        state.oldXml = await readFileAsText(files[0]);
-        state.newXml = await readFileAsText(files[1]);
-        updateUIState();
-        await triggerDiff();
-    } else if (files.length === 1) {
-        const targetCanvas = e.target.closest('.canvas');
-        if (targetCanvas && targetCanvas.id === 'canvas-left') {
-            state.oldXml = await readFileAsText(files[0]);
-        } else if (targetCanvas && targetCanvas.id === 'canvas-right') {
-            state.newXml = await readFileAsText(files[0]);
-        } else {
-            if (!state.oldXml) {
-                state.oldXml = await readFileAsText(files[0]);
-            } else {
-                state.newXml = await readFileAsText(files[0]);
-            }
-        }
-        updateUIState();
-        await triggerDiff();
-    }
-});
-
-
-window.addEventListener('unhandledrejection', event => {
-    console.error('Unhandled promise rejection:', event.reason);
-});
-
-window.addEventListener('DOMContentLoaded', async () => {
-    console.log('App starting...');
-    if (state.mode === 'git') {
-        await loadGitInfo();
-    } else {
-        updateUIState();
-    }
-});

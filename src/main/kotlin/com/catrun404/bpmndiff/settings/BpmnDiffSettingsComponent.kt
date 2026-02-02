@@ -9,21 +9,26 @@ import javax.swing.JPanel
 
 class BpmnDiffSettingsComponent {
     val panel: JPanel
-    private val defaultOldBranchText = JBTextField()
+    private val defaultLeftBranchText = JBTextField()
 
     init {
         panel = FormBuilder.createFormBuilder()
-            .addLabeledComponent(JBLabel(BpmnDiffBundle.message("settings.default.old.branch.label")), defaultOldBranchText, 1, false)
+            .addLabeledComponent(
+                JBLabel(BpmnDiffBundle.message("settings.default.left.branch.label")),
+                defaultLeftBranchText,
+                1,
+                false
+            )
             .addComponentFillVertically(JPanel(), 0)
             .panel
     }
 
     val preferredFocusedComponent: JComponent
-        get() = defaultOldBranchText
+        get() = defaultLeftBranchText
 
-    var defaultOldBranch: String
-        get() = defaultOldBranchText.text
+    var defaultLeftBranch: String
+        get() = defaultLeftBranchText.text
         set(newText) {
-            defaultOldBranchText.text = newText
+            defaultLeftBranchText.text = newText
         }
 }

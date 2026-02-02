@@ -1,6 +1,9 @@
 package com.catrun404.bpmndiff.settings
 
-import com.intellij.openapi.components.*
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 
 @Service(Service.Level.PROJECT)
@@ -11,7 +14,7 @@ import com.intellij.openapi.project.Project
 class BpmnDiffSettingsState : PersistentStateComponent<BpmnDiffSettingsState.State> {
 
     class State {
-        var defaultOldBranch: String = "dev"
+        var defaultLeftBranch: String = "dev"
     }
 
     private var myState = State()

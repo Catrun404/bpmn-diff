@@ -1,6 +1,6 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# bpmn-diff Changelog
+# BPMN-Diff Changelog
 
 ## [Unreleased]
 
@@ -14,22 +14,22 @@
 
 ### Added
 
-- Dynamic tab titles for the bpmn-diff tool window based on the selected files
-- Option to open bpmn-diff contents in new tabs
-- Option to reload bpmn-diff tool window content
+- Dynamic tab titles for the BPMN-Diff tool window based on the selected files
+- Option to open BPMN-Diff contents in new tabs
+- Option to reload BPMN-Diff tool window content
 
 ## [0.0.1] - 2026-01-09
 
 ### Added
 
-- Web-based BPMN diff viewer integration
+- Web-based BPMN-Diff viewer integration
 - Support for comparing BPMN files using Git history
 - Settings page for configuring the default branch and other preferences
 - Initial scaffold created from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
 
 ### Changed
 
-- Refactored BPMN diff logic for better performance and reliability
+- Refactored BPMN-Diff logic for better performance and reliability
 - Simplified marker rendering and improved handling of empty definitions
 - Optimized Git diff commands for faster execution
 - Enhanced UI/UX for consistency with IntelliJ Platform

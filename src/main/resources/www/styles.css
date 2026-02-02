@@ -5,7 +5,17 @@
     --layout-changed: #3498db;
     --header-height: 50px;
     --footer-height: 30px;
-    --io-control-height: 60px;
+
+    --bg-color: #FFF;
+    --text-color: #333;
+    --header-bg: #333;
+    --header-text: #FFF;
+    --control-bg: #FAFAFA;
+    --border-color: #CCC;
+    --list-item-hover: #F0F0F0;
+    --list-item-selected: #e1f5fe;
+    --diff-label-color: #666;
+    --diff-details-color: #888;
 }
 
 * {
@@ -17,15 +27,15 @@ body, html {
     padding: 0;
     height: 100%;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    background: #FFF;
-    color: #333;
+    background: var(--bg-color);
+    color: var(--text-color);
     overflow: hidden;
 }
 
 .header {
     height: var(--header-height);
-    background: #333;
-    color: #FFF;
+    background: var(--header-bg);
+    color: var(--header-text);
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -42,72 +52,9 @@ body, html {
 }
 
 .main-content {
-    height: calc(100% - var(--header-height) - var(--footer-height));
+    height: 100%;
     display: flex;
     flex-direction: column;
-}
-
-.io-control {
-    height: auto;
-    min-height: var(--io-control-height);
-    background: #FAFAFA;
-    border-bottom: 1px solid #CCC;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    padding: 10px 20px;
-    gap: 20px;
-}
-
-.io-control-mode {
-    display: flex;
-    gap: 0;
-    border: 1px solid #CCC;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.io-control-mode button {
-    border: none;
-    background: #EEE;
-    color: #333;
-    padding: 5px 15px;
-    cursor: pointer;
-    font-size: 12px;
-}
-
-.io-control-mode button.active {
-    background: #333;
-    color: #FFF;
-}
-
-.io-control-section {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.io-control select {
-    padding: 4px 8px;
-    border: 1px solid #CCC;
-    border-radius: 4px;
-    background: #FFF;
-    color: #333;
-}
-
-.io-control input[type="file"] {
-    color: #333;
-}
-
-.io-control-group label {
-    color: #333;
-}
-
-.io-control-label {
-    font-weight: bold;
-    font-size: 12px;
-    text-transform: uppercase;
-    color: #333;
 }
 
 .content-wrapper {
@@ -129,7 +76,7 @@ body, html {
 }
 
 #canvas-left {
-    border-right: 1px solid #CCC;
+    border-right: 1px solid var(--border-color);
 }
 
 .io-alerts {
@@ -142,9 +89,9 @@ body, html {
 
 .io-alert {
     padding: 20px 40px;
-    background: #FFF;
-    color: #333;
-    border: 1px solid #CCC;
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
     border-radius: 2px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
@@ -152,8 +99,8 @@ body, html {
 .diff-items {
     position: relative;
     width: 300px;
-    background: #FFF;
-    border-left: 1px solid #CCC;
+    background: var(--bg-color);
+    border-left: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     z-index: 10;
@@ -161,11 +108,11 @@ body, html {
 
 .diff-items-header {
     padding: 10px 15px;
-    background: #FAFAFA;
-    border-bottom: 1px solid #CCC;
+    background: var(--control-bg);
+    border-bottom: 1px solid var(--border-color);
     font-weight: bold;
     font-size: 14px;
-    color: #333;
+    color: var(--text-color);
 }
 
 #changes-list {
@@ -178,21 +125,21 @@ body, html {
 
 #changes-list li {
     padding: 8px 15px;
-    border-bottom: 1px solid #EEE;
+    border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     font-size: 13px;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    color: #333;
+    color: var(--text-color);
 }
 
 #changes-list li:hover {
-    background: #F0F0F0;
+    background: var(--list-item-hover);
 }
 
 #changes-list li.selected {
-    background: #e1f5fe;
+    background: var(--list-item-selected);
     border-left: 4px solid var(--layout-changed);
 }
 
@@ -208,26 +155,22 @@ body, html {
 #changes-list li.layoutChanged .diff-type { color: var(--layout-changed); }
 
 #changes-list li .diff-label {
-    color: #666;
+    color: var(--diff-label-color);
 }
 
 #changes-list li .diff-details {
     font-size: 11px;
-    color: #888;
+    color: var(--diff-details-color);
     margin-top: 2px;
     font-style: italic;
     word-break: break-all;
 }
 
-#diff-toggle-group label {
-    color: #333;
-    font-size: 13px;
-}
 
 footer {
     height: var(--footer-height);
-    background: #333;
-    color: #AAA;
+    background: var(--header-bg);
+    color: var(--header-text);
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -243,16 +186,6 @@ footer a:hover {
     text-decoration: underline;
 }
 
-#run-diff.loading {
-    opacity: 0.7;
-    cursor: wait;
-    position: relative;
-    pointer-events: none;
-}
-
-#run-diff.loading::after {
-    content: "...";
-}
 
 /* bpmn-js-differ markers */
 .diff-added .djs-visual > :not(text) {

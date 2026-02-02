@@ -1,9 +1,10 @@
 package com.catrun404.bpmndiff
 
-import com.intellij.openapi.util.IconLoader
+import com.intellij.icons.AllIcons
 
 @Suppress("unused")
 object BpmnDiffIcons {
     @JvmField
-    val ToolWindow = IconLoader.getIcon("/icons/bpmnDiffTool.svg", BpmnDiffIcons::class.java)
+    val ToolWindow = AllIcons.Actions.DiagramDiff
+
 }

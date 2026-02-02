@@ -1,13 +1,13 @@
-# bpmn-diff
+# BPMN-Diff
 
 ![Build](https://github.com/Catrun404/bpmn-diff/workflows/Build/badge.svg)
 [![Version](https://img.shields.io/jetbrains/plugin/v/29687-bpmn-diff.svg)](https://plugins.jetbrains.com/plugin/29687-bpmn-diff)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/29687-bpmn-diff.svg)](https://plugins.jetbrains.com/plugin/29687-bpmn-diff)
 
-# bpmn-diff IntelliJ Platform Plugin
+# BPMN-Diff IntelliJ Platform Plugin
 
 <!-- Plugin description -->
-This bpmn-diff IntelliJ Platform Plugin that compares two BPMN files and visualizes the differences.
+This DPMN-Diff IntelliJ Platform Plugin that compares two BPMN files and visualizes the differences.
 
 ## Features
 

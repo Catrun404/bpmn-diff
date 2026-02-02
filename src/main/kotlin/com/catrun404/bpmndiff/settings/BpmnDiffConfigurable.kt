@@ -19,17 +19,17 @@ class BpmnDiffConfigurable(private val project: Project) : Configurable {
 
     override fun isModified(): Boolean {
         val settings = BpmnDiffSettingsState.getInstance(project).state
-        return mySettingsComponent?.defaultOldBranch != settings.defaultOldBranch
+        return mySettingsComponent?.defaultLeftBranch != settings.defaultLeftBranch
     }
 
     override fun apply() {
         val settings = BpmnDiffSettingsState.getInstance(project).state
-        settings.defaultOldBranch = mySettingsComponent?.defaultOldBranch ?: "dev"
+        settings.defaultLeftBranch = mySettingsComponent?.defaultLeftBranch ?: "dev"
     }
 
     override fun reset() {
         val settings = BpmnDiffSettingsState.getInstance(project).state
-        mySettingsComponent?.defaultOldBranch = settings.defaultOldBranch
+        mySettingsComponent?.defaultLeftBranch = settings.defaultLeftBranch
     }
 
     override fun disposeUIResources() {

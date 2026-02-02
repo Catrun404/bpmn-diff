@@ -1,7 +1,7 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <id>com.github.catrun404.bpmndiff</id>
-    <name>bpmn-diff</name>
+    <name>BPMN-Diff</name>
     <vendor>catrun404</vendor>
 
     <depends>com.intellij.modules.platform</depends>
@@ -23,4 +23,26 @@
                 key="settings.display.name"
                 nonDefaultProject="true"/>
     </extensions>
+
+    <actions>
+        <action id="BpmnDiff.OpenInAssociatedApplication"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffOpenInAssociatedApplicationAction"
+                use-shortcut-of="OpenInAssociatedApplication">
+        </action>
+        <action id="BpmnDiff.ShowDiff"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffToggleDiffAction">
+        </action>
+        <action id="BpmnDiff.PreviousFile"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffPreviousFileAction"
+                use-shortcut-of="Diff.PrevChange">
+        </action>
+        <action id="BpmnDiff.NextFile"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffNextFileAction"
+                use-shortcut-of="Diff.NextChange">
+        </action>
+        <action id="BpmnDiff.Refresh"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffRefreshAction">
+            <keyboard-shortcut first-keystroke="ctrl R" keymap="$default"/>
+        </action>
+    </actions>
 </idea-plugin>
