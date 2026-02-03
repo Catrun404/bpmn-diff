@@ -4,17 +4,21 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the tool window ID casing
+
 ## [1.0.0] - 2026-02-03
 
 ### Added
 
 - Ability to use shortcuts for already existing actions:
-  - `Show Diff` toggle
-  - `Refresh` (default: Ctrl+R)
+    - `Show Diff` toggle
+    - `Refresh` (default: Ctrl+R)
 - New tool window actions:
-  - `Previous File` in Git Mode (inherited from `Compare Previous File`, default: Alt+Shift+Left)
-  - `Next File` in Git Mode (inherited from `Compare Next File`, default: Alt+Shift+Left)
-  - `Open In Associated Application` (inherited from `Open In Associated Application`)
+    - `Previous File` in Git Mode (inherited from `Compare Previous File`, default: Alt+Shift+Left)
+    - `Next File` in Git Mode (inherited from `Compare Next File`, default: Alt+Shift+Left)
+    - `Open In Associated Application` (inherited from `Open In Associated Application`)
 
 ### Changed
 
@@ -51,7 +55,8 @@
 - Web-based BPMN-Diff viewer integration
 - Support for comparing BPMN files using Git history
 - Settings page for configuring the default branch and other preferences
-- Initial scaffold created from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
+- Initial scaffold created
+  from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
 
 ### Changed
 
@@ -62,7 +67,11 @@
 - Streamlined plugin resources and removed unused assets
 
 [Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.0.0...HEAD
+
 [1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.1.0...v1.0.0
+
 [0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.2...v0.1.0
+
 [0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...v0.0.2
+
 [0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/v0.0.1

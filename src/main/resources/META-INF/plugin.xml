@@ -10,7 +10,7 @@
     <resource-bundle>messages.BpmnDiffBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="bpmn-diff"
+        <toolWindow id="BPMN-Diff"
                     anchor="bottom"
                     icon="com.catrun404.bpmndiff.BpmnDiffIcons.ToolWindow"
                     doNotActivateOnStart="true"
