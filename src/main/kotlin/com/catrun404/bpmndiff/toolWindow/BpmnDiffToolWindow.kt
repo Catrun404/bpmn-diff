@@ -45,8 +45,7 @@ class BpmnDiffToolWindow(
     private val browser = JBCefBrowser()
     private val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
     private var toolbar: ActionToolbar? = null
-    var currentFile: File? = null
-        private set
+    private var currentFile: File? = null
     private var currentVirtualFile: VirtualFile? = null
 
     private var mode = GIT_MODE
@@ -357,7 +356,9 @@ class BpmnDiffToolWindow(
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
     }
 
-    inner class ManualFileSelectAction(val isLeft: Boolean) : AnAction() {
+    inner class ManualFileSelectAction(
+        private val isLeft: Boolean
+    ) : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
             val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
                 .withFileFilter { it.extension == "bpmn" || it.extension == "xml" }
