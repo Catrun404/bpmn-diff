@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-02-03
+
 ### Added
 
 - Ability to use shortcuts for already existing actions:
@@ -59,7 +61,8 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/v0.0.1
