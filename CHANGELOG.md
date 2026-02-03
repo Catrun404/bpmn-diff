@@ -4,6 +4,30 @@
 
 ## [Unreleased]
 
+### Added
+
+- Ability to use shortcuts for already existing actions:
+  - `Show Diff` toggle
+  - `Refresh` (default: Ctrl+R)
+- New tool window actions:
+  - `Previous File` in Git Mode (inherited from `Compare Previous File`, default: Alt+Shift+Left)
+  - `Next File` in Git Mode (inherited from `Compare Next File`, default: Alt+Shift+Left)
+  - `Open In Associated Application` (inherited from `Open In Associated Application`)
+
+### Changed
+
+- Move controls from js into tool window actions:
+    - `Show Diff` toggle
+    - `Previous File` button
+    - `Next File` button
+    - Left/Right file selectors for Manual Mode
+- Refactored ToolWindow/UI implementation for improved modularity and consistency
+- Standardized plugin naming and UI text to `BPMN-Diff` across the project
+
+### Removed
+
+- Removed `Clear` and `Compare` actions from the canvas
+
 ## [0.1.0] - 2026-01-28
 
 ### Changed

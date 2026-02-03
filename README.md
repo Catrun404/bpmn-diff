@@ -15,7 +15,7 @@ This DPMN-Diff IntelliJ Platform Plugin that compares two BPMN files and visuali
 - **Visual highlighting** of changes (added, removed, changed, layout changes).
 - **Synchronized scrolling and zooming** between diagrams.
 - **Git integration**: compare diagrams across different branches or commits.
-- **Manual mode**: upload or drop BPMN files for comparison.
+- **Manual mode**: upload BPMN files for comparison.
 
 <!-- Plugin description end -->
 
