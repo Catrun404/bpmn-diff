@@ -26,23 +26,23 @@ const ui = {
 };
 
 const state = {
-    mode: 'git', // 'git' | 'manual'
+    mode: 'branch', // 'branch' | 'commit' | 'manual'
     leftXml: null,
     rightXml: null,
     currentDiff: null,
     isDiffing: false,
 
     gitFile: null,
-    gitLeftBranch: null,
-    gitRightBranch: null,
+    gitLeftRef: null,
+    gitRightRef: null,
 
     manualLeftFileName: null,
     manualRightFileName: null,
     showDiff: true,
 
     get isReady() {
-        return this.mode === 'git'
-            ? !!this.gitFile && !!this.gitLeftBranch && !!this.gitRightBranch
+        return this.mode !== 'manual'
+            ? !!this.gitFile && !!this.gitLeftRef && !!this.gitRightRef
             : (!!this.leftXml && !!this.rightXml);
     }
 };
@@ -55,7 +55,7 @@ const viewers = {
 
 async function switchMode(newMode) {
     state.mode = newMode;
-    const isGit = newMode === 'git';
+    const isGit = newMode !== 'manual';
 
     if (window.setSelectedFile) {
         window.setSelectedFile(isGit ? (state.gitFile || '') : '');
@@ -66,10 +66,10 @@ async function switchMode(newMode) {
 
 window.switchModeFromIJ = switchMode;
 
-window.setGitSelection = (leftBranch, rightBranch, file) => {
-    console.log('Git selection updated from IJ:', {leftBranch, rightBranch, file});
-    state.gitLeftBranch = leftBranch;
-    state.gitRightBranch = rightBranch;
+window.setGitSelection = (leftRef, rightRef, file) => {
+    console.log('Git selection updated from IJ:', {leftRef, rightRef, file});
+    state.gitLeftRef = leftRef;
+    state.gitRightRef = rightRef;
     state.gitFile = file;
 
     if (window.setSelectedFile) {
@@ -108,12 +108,12 @@ window.setShowDiff = (show) => {
 window.initFromIJ = (mode, leftBranch, rightBranch, file, showDiff) => {
     console.log('Initializing from IJ:', {mode, leftBranch, rightBranch, file, showDiff});
     state.mode = mode;
-    state.gitLeftBranch = leftBranch;
-    state.gitRightBranch = rightBranch;
+    state.gitLeftRef = leftBranch;
+    state.gitRightRef = rightBranch;
     state.gitFile = file;
     state.showDiff = showDiff !== undefined ? showDiff : true;
 
-    const isGit = mode === 'git';
+    const isGit = mode !== 'manual';
 
     if (window.setSelectedFile) {
         window.setSelectedFile(isGit ? (file || '') : '');
@@ -134,7 +134,7 @@ async function triggerDiff() {
 
 function updateTabTitle() {
     let title = 'BPMN-Diff';
-    if (state.mode === 'git') {
+    if (state.mode !== 'manual') {
         const file = state.gitFile;
         if (file) {
             const fileName = file.split('/').pop();
@@ -196,10 +196,10 @@ syncViewers();
 async function doDiff() {
     if (state.isDiffing) return;
 
-    if (state.mode === 'git') {
+    if (state.mode !== 'manual') {
         const file = state.gitFile;
-        const leftRef = state.gitLeftBranch;
-        const rightRef = state.gitRightBranch;
+        const leftRef = state.gitLeftRef;
+        const rightRef = state.gitRightRef;
 
         if (!file || !leftRef || !rightRef) {
             console.warn('Missing git parameters:', {file, leftRef, rightRef});

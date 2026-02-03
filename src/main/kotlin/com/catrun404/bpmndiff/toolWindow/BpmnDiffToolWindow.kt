@@ -6,7 +6,8 @@ import com.catrun404.bpmndiff.git.BpmnDiffGitService
 import com.catrun404.bpmndiff.settings.BpmnDiffSettingsState
 import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.BPMN_DIFF_SERVICE_PAGE_URL
 import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.BPMN_DIFF_SERVICE_URL
-import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.GIT_MODE
+import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.BRANCH_MODE
+import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.COMMIT_MODE
 import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.MANUAL_MODE
 import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.SCHEME
 import com.catrun404.bpmndiff.toolWindow.BpmnDiffConstants.SERVICE_DOMAIN
@@ -48,11 +49,14 @@ class BpmnDiffToolWindow(
     private var currentFile: File? = null
     private var currentVirtualFile: VirtualFile? = null
 
-    private var mode = GIT_MODE
+    private var mode = BRANCH_MODE
     private var branches = listOf<String>()
     private var files = listOf<String>()
+    private var commits = listOf<Pair<String, String>>()
     private var selectedLeftBranch: String? = null
     private var selectedRightBranch: String? = null
+    private var selectedLeftCommit: String? = null
+    private var selectedRightCommit: String? = null
     private var selectedFile: String? = null
     private var manualLeftFileName: String? = null
     private var manualRightFileName: String? = null
@@ -110,8 +114,8 @@ class BpmnDiffToolWindow(
         browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
             override fun onLoadEnd(browser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
                 if (frame?.isMain == true) {
-                    val left = selectedLeftBranch ?: ""
-                    val right = selectedRightBranch ?: ""
+                    val left = if (isCommitModeActive()) (selectedLeftCommit ?: "") else (selectedLeftBranch ?: "")
+                    val right = if (isCommitModeActive()) (selectedRightCommit ?: "") else (selectedRightBranch ?: "")
                     val file = selectedFile?.replace("\\", "/") ?: ""
                     val script = """
                         window.setTabTitle = function(title) { 
@@ -162,16 +166,51 @@ class BpmnDiffToolWindow(
             })
     }
 
+    private fun fetchCommits() {
+        val gitService = BpmnDiffGitService.getInstance(project)
+        val repository = gitService.getFirstRepository() ?: return
+        ProgressManager.getInstance()
+            .run(object : Task.Backgroundable(project, BpmnDiffBundle.message("progress.fetching.commits"), false) {
+                override fun run(indicator: ProgressIndicator) {
+                    val commitData = gitService.fetchCommits(repository)
+
+                    ApplicationManager.getApplication().invokeLater {
+                        if (project.isDisposed) return@invokeLater
+                        commits = commitData
+
+                        if (selectedRightCommit == null) {
+                            selectedRightCommit = commitData.firstOrNull()?.first
+                        }
+                        if (selectedLeftCommit == null) {
+                            selectedLeftCommit =
+                                if (commitData.size > 1) commitData[1].first else commitData.firstOrNull()?.first
+                        }
+                        updateFiles()
+                    }
+                }
+            })
+    }
+
     private fun updateFiles() {
         val gitService = BpmnDiffGitService.getInstance(project)
         val repository = gitService.getFirstRepository() ?: return
-        val leftBranch = selectedLeftBranch ?: return
-        val rightBranch = selectedRightBranch ?: return
+
+        val leftRef = when {
+            isBranchModeActive() -> selectedLeftBranch
+            isCommitModeActive() -> selectedLeftCommit
+            else -> null
+        } ?: return
+
+        val rightRef = when {
+            isBranchModeActive() -> selectedRightBranch
+            isCommitModeActive() -> selectedRightCommit
+            else -> null
+        } ?: return
 
         ProgressManager.getInstance()
             .run(object : Task.Backgroundable(project, BpmnDiffBundle.message("progress.updating.files"), false) {
                 override fun run(indicator: ProgressIndicator) {
-                    val foundFiles = gitService.getChangedBpmnFiles(repository, leftBranch, rightBranch)
+                    val foundFiles = gitService.getChangedBpmnFiles(repository, leftRef, rightRef)
                     ApplicationManager.getApplication().invokeLater {
                         if (project.isDisposed) return@invokeLater
                         files = foundFiles
@@ -184,7 +223,6 @@ class BpmnDiffToolWindow(
                 }
             })
     }
-
 
     private fun updateCurrentFile() {
         val gitService = BpmnDiffGitService.getInstance(project)
@@ -199,8 +237,16 @@ class BpmnDiffToolWindow(
     }
 
     private fun updateWeb() {
-        val left = selectedLeftBranch ?: ""
-        val right = selectedRightBranch ?: ""
+        val left = when {
+            isBranchModeActive() -> selectedLeftBranch ?: ""
+            isCommitModeActive() -> selectedLeftCommit ?: ""
+            else -> ""
+        }
+        val right = when {
+            isBranchModeActive() -> selectedRightBranch ?: ""
+            isCommitModeActive() -> selectedRightCommit ?: ""
+            else -> ""
+        }
         val file = selectedFile?.replace("\\", "/") ?: ""
         val script = "if (window.setGitSelection) { window.setGitSelection('$left', '$right', '$file'); }"
         browser.cefBrowser.executeJavaScript(script, browser.cefBrowser.url, 0)
@@ -249,16 +295,32 @@ class BpmnDiffToolWindow(
         val actionGroup = DefaultActionGroup()
 
         actionGroup.add(object : AnAction(
-            BpmnDiffBundle.message("action.mode.git.text"),
-            BpmnDiffBundle.message("action.mode.git.description"),
+            BpmnDiffBundle.message("action.mode.branch.text"),
+            BpmnDiffBundle.message("action.mode.branch.description"),
             AllIcons.Vcs.Branch
         ) {
             override fun actionPerformed(e: AnActionEvent) {
-                switchMode(GIT_MODE)
+                switchMode(BRANCH_MODE)
             }
 
             override fun update(e: AnActionEvent) {
-                e.presentation.isEnabled = isGitModeActive() == false
+                e.presentation.isEnabled = !isBranchModeActive()
+            }
+
+            override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        })
+
+        actionGroup.add(object : AnAction(
+            BpmnDiffBundle.message("action.mode.commit.text"),
+            BpmnDiffBundle.message("action.mode.commit.description"),
+            AllIcons.Vcs.CommitNode
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                switchMode(COMMIT_MODE)
+            }
+
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = !isCommitModeActive()
             }
 
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -274,7 +336,7 @@ class BpmnDiffToolWindow(
             }
 
             override fun update(e: AnActionEvent) {
-                e.presentation.isEnabled = isGitModeActive()
+                e.presentation.isEnabled = !isManualModeActive()
             }
 
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -286,6 +348,9 @@ class BpmnDiffToolWindow(
         actionGroup.add(BranchComboBoxAction(true))
         actionManager.getAction("BpmnDiff.ShowDiff")?.let { actionGroup.add(it) }
         actionGroup.add(BranchComboBoxAction(false))
+
+        actionGroup.add(CommitComboBoxAction(true))
+        actionGroup.add(CommitComboBoxAction(false))
 
         actionGroup.addSeparator()
 
@@ -322,10 +387,35 @@ class BpmnDiffToolWindow(
         }
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isVisible = isGitModeActive()
+            e.presentation.isVisible = isBranchModeActive()
             e.presentation.icon = AllIcons.Vcs.Branch
             val branch = if (isLeft) selectedLeftBranch else selectedRightBranch
             e.presentation.text = branch ?: if (isLeft) "Select Left Branch" else "Select Right Branch"
+        }
+
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+    }
+
+    inner class CommitComboBoxAction(val isLeft: Boolean) : ComboBoxAction() {
+        override fun createPopupActionGroup(button: JComponent, dataContext: DataContext): DefaultActionGroup {
+            val group = DefaultActionGroup()
+            for ((hash, message) in commits) {
+                val label = if (message.isNotBlank()) "$message | $hash" else hash
+                group.add(object : DumbAwareAction(label) {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        if (isLeft) selectedLeftCommit = hash else selectedRightCommit = hash
+                        updateFiles()
+                    }
+                })
+            }
+            return group
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isVisible = isCommitModeActive()
+            e.presentation.icon = AllIcons.Vcs.CommitNode
+            val ref = if (isLeft) selectedLeftCommit else selectedRightCommit
+            e.presentation.text = ref ?: if (isLeft) "Select Left Commit" else "Select Right Commit"
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -379,7 +469,7 @@ class BpmnDiffToolWindow(
         }
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isVisible = isGitModeActive() == false
+            e.presentation.isVisible = isManualModeActive()
             val fileName = if (isLeft) manualLeftFileName else manualRightFileName
             e.presentation.text = if (fileName != null) {
                 if (isLeft) "Left: $fileName" else "Right: $fileName"
@@ -393,7 +483,11 @@ class BpmnDiffToolWindow(
     }
 
     fun reload() {
-        fetchBranches()
+        if (isBranchModeActive()) {
+            fetchBranches()
+        } else if (isCommitModeActive()) {
+            fetchCommits()
+        }
         browser.cefBrowser.reload()
     }
 
@@ -401,8 +495,9 @@ class BpmnDiffToolWindow(
         mode = newMode
         val script = "if (window.switchModeFromIJ) { window.switchModeFromIJ('$newMode'); }"
         browser.cefBrowser.executeJavaScript(script, browser.cefBrowser.url, 0)
-        if (newMode == GIT_MODE) {
-            fetchBranches()
+        when (newMode) {
+            BRANCH_MODE -> fetchBranches()
+            COMMIT_MODE -> fetchCommits()
         }
         toolbar?.updateActionsAsync()
     }
@@ -429,7 +524,13 @@ class BpmnDiffToolWindow(
 
     fun canNavigateFiles(): Boolean = isGitModeActive() && files.size > 1
 
-    fun isGitModeActive(): Boolean = mode == GIT_MODE
+    fun isBranchModeActive(): Boolean = mode == BRANCH_MODE
+
+    fun isCommitModeActive(): Boolean = mode == COMMIT_MODE
+
+    fun isGitModeActive(): Boolean = isBranchModeActive() || isCommitModeActive()
+
+    fun isManualModeActive(): Boolean = mode == MANUAL_MODE
 
     fun isShowDiffSelected(): Boolean = showDiff
 

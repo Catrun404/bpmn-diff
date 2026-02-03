@@ -7,7 +7,8 @@ object BpmnDiffConstants {
     const val BPMN_DIFF_SERVICE_PAGE_URL = BPMN_DIFF_SERVICE_URL + "index.html"
 
     const val MANUAL_MODE = "manual"
-    const val GIT_MODE = "git"
+    const val BRANCH_MODE = "branch"
+    const val COMMIT_MODE = "commit"
 
     const val APPLICATION_JSON_TYPE = "application/json"
     const val TEXT_PLAIN_TYPE = "text/plain"

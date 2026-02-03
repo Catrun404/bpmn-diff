@@ -35,6 +35,21 @@ class BpmnDiffGitService(private val project: Project) {
         return emptyList()
     }
 
+    fun fetchCommits(repository: GitRepository): List<Pair<String, String>> {
+        val handler = GitLineHandler(project, repository.root, GitCommand.LOG)
+        handler.addParameters("--pretty=format:%h|%s", "-n", "100")
+        val result = Git.getInstance().runCommand(handler)
+        if (result.success()) {
+            return result.output.filter { it.isNotBlank() }.map { line ->
+                val parts = line.split("|")
+                val hash = parts[0]
+                val message = parts.getOrNull(1) ?: ""
+                hash to message
+            }
+        }
+        return emptyList()
+    }
+
     fun getChangedBpmnFiles(repository: GitRepository, leftRef: String, rightRef: String): List<String> {
         val handler = if (leftRef == rightRef) {
             val h = GitLineHandler(project, repository.root, GitCommand.LS_TREE)

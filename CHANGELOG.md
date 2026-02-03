@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `Commit mode` comparison to BPMN-Diff tool
+
 ### Fixed
 
 - Fix the tool window ID casing
