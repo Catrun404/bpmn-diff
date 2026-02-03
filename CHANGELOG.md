@@ -11,6 +11,7 @@
 ### Fixed
 
 - Fix the tool window ID casing
+- Exclude `Layout Changed` for `Added` elements
 
 ## [1.0.0] - 2026-02-03
 

@@ -295,7 +295,7 @@ function renderDiff(diff, show) {
     }
 
     for (const id in diff._layoutChanged) {
-        if (!diff._changed[id]) {
+        if (!diff._changed[id] && !diff._added[id]) {
             items.push({id, action: 'layoutChanged', element: diff._layoutChanged[id]});
         }
     }
