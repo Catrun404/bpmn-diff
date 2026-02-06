@@ -25,6 +25,10 @@
     </extensions>
 
     <actions>
+        <action id="BpmnDiff.AddTab"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffAddTabAction"/>
+        <action id="BpmnDiff.Settings"
+                class="com.catrun404.bpmndiff.actions.BpmnDiffSettingsAction"/>
         <action id="BpmnDiff.OpenInAssociatedApplication"
                 class="com.catrun404.bpmndiff.actions.BpmnDiffOpenInAssociatedApplicationAction"
                 use-shortcut-of="OpenInAssociatedApplication">

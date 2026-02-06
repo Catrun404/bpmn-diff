@@ -1,6 +1,9 @@
 package com.catrun404.bpmndiff.toolWindow
 
 object BpmnDiffConstants {
+
+    const val TOOL_WINDOW_ID = "BPMN-Diff"
+
     const val SCHEME = "https"
     const val SERVICE_DOMAIN = "bpmndiff"
     const val BPMN_DIFF_SERVICE_URL = "$SCHEME://$SERVICE_DOMAIN/"
@@ -12,4 +15,5 @@ object BpmnDiffConstants {
 
     const val APPLICATION_JSON_TYPE = "application/json"
     const val TEXT_PLAIN_TYPE = "text/plain"
+
 }

@@ -7,6 +7,7 @@
 ### Added
 
 - Add `Commit mode` comparison to BPMN-Diff tool
+- Ability to use shortcuts for `Add New Tab` and `Settings`
 
 ### Fixed
 
