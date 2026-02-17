@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-02-17
+
 ### Added
 
 - Add `Commit mode` comparison to BPMN-Diff tool
@@ -73,12 +75,9 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.0.0...HEAD
-
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.1.0...v1.0.0
-
 [0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.2...v0.1.0
-
 [0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...v0.0.2
-
 [0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/v0.0.1
