@@ -10,6 +10,10 @@
     <resource-bundle>messages.BpmnDiffBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
+        <fileType name="BPMN"
+                  implementationClass="com.catrun404.bpmndiff.BpmnFileType"
+                  fieldName="INSTANCE"
+                  extensions="bpmn"/>
         <toolWindow id="BPMN-Diff"
                     anchor="bottom"
                     icon="com.catrun404.bpmndiff.BpmnDiffIcons.ToolWindow"
