@@ -23,6 +23,7 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
@@ -34,6 +35,7 @@ import org.cef.browser.CefFrame
 import org.cef.handler.CefLoadHandlerAdapter
 import org.cef.network.CefRequest
 import java.awt.BorderLayout
+import java.awt.Dimension
 import java.io.File
 import java.util.*
 import javax.swing.JComponent
@@ -390,7 +392,9 @@ class BpmnDiffToolWindow(
             e.presentation.isVisible = isBranchModeActive()
             e.presentation.icon = AllIcons.Vcs.Branch
             val branch = if (isLeft) selectedLeftBranch else selectedRightBranch
-            e.presentation.text = branch ?: if (isLeft) "Select Left Branch" else "Select Right Branch"
+            e.presentation.text = branch ?: BpmnDiffBundle.message(
+                if (isLeft) "action.branch.select.left.text" else "action.branch.select.right.text"
+            )
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -415,7 +419,9 @@ class BpmnDiffToolWindow(
             e.presentation.isVisible = isCommitModeActive()
             e.presentation.icon = AllIcons.Vcs.CommitNode
             val ref = if (isLeft) selectedLeftCommit else selectedRightCommit
-            e.presentation.text = ref ?: if (isLeft) "Select Left Commit" else "Select Right Commit"
+            e.presentation.text = ref ?: BpmnDiffBundle.message(
+                if (isLeft) "action.commit.select.left.text" else "action.commit.select.right.text"
+            )
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -439,8 +445,21 @@ class BpmnDiffToolWindow(
         override fun update(e: AnActionEvent) {
             e.presentation.isVisible = isGitModeActive()
             e.presentation.icon = AllIcons.Actions.ListFiles
-            e.presentation.text = selectedFile ?: "Select File"
+            val fullText = selectedFile ?: BpmnDiffBundle.message("action.file.select.text")
+            val folded = StringUtil.shortenPathWithEllipsis(fullText, 64)
+            e.presentation.text = folded
+            e.presentation.description = fullText
             e.presentation.isEnabled = files.isNotEmpty()
+        }
+
+        override fun createCustomComponent(presentation: Presentation, place: String): JComponent {
+            val component = super.createCustomComponent(presentation, place)
+            val fixedWidth = JBUI.scale(400)
+            val fixedSize = Dimension(fixedWidth, component.preferredSize.height)
+            component.minimumSize = fixedSize
+            component.preferredSize = fixedSize
+            component.maximumSize = fixedSize
+            return component
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -474,7 +493,9 @@ class BpmnDiffToolWindow(
             e.presentation.text = if (fileName != null) {
                 if (isLeft) "Left: $fileName" else "Right: $fileName"
             } else {
-                if (isLeft) BpmnDiffBundle.message("action.manual.select.left.text") else BpmnDiffBundle.message("action.manual.select.right.text")
+                BpmnDiffBundle.message(
+                    if (isLeft) "action.manual.select.left.text" else "action.manual.select.right.text"
+                )
             }
             e.presentation.icon = AllIcons.Actions.MenuOpen
         }

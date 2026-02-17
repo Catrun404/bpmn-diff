@@ -13,6 +13,7 @@
 
 - Fix the tool window ID casing
 - Exclude `Layout Changed` for `Added` elements
+- Fix file selector size with file name folding to avoid moving elements next to it
 
 ## [1.0.0] - 2026-02-03
 
