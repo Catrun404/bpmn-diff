@@ -1,6 +1,6 @@
-import BpmnViewer from "https://esm.sh/bpmn-js@18.10.1/lib/NavigatedViewer";
-import BpmnModdle from "https://esm.sh/bpmn-moddle@9.0.4";
-import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.1.0";
+import BpmnViewer from "https://esm.sh/bpmn-js@18.14.0/lib/NavigatedViewer";
+import BpmnModdle from "https://esm.sh/bpmn-moddle@10.0.0";
+import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.2.0";
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
