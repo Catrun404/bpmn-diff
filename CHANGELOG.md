@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Deps
+
+- Update Platform Version to 2026.1
+
+
+
 ## [1.1.0] - 2026-02-17
 
 ### Added
