@@ -4,9 +4,6 @@ services:
     working_dir: /app/docker
     volumes:
       - ..:/app
-#      - ../src/main/resources/www/app.js:/app/docker/app.js
-#      - ../src/main/resources/www/dmn-diff.js:/app/docker/dmn-diff.js
-#      - ../src/main/resources/www/styles.css:/app/docker/styles.css
     ports:
       - "5173:5173"
     command: >
