@@ -4,11 +4,11 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-05-30
+
 ### Deps
 
 - Update Platform Version to 2026.1
-
-
 
 ## [1.1.0] - 2026-02-17
 
@@ -81,9 +81,10 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.1.0...v1.0.0
-[0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.2...v0.1.0
-[0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/v0.0.1
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/Catrun404/bpmn-diff/compare/1.1.0...1.1.1
+[1.1.0]: https://github.com/Catrun404/bpmn-diff/compare/1.0.0...1.1.0
+[1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/0.1.0...1.0.0
+[0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/0.0.2...0.1.0
+[0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/0.0.1...0.0.2
+[0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/0.0.1
