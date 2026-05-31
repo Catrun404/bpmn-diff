@@ -4,4 +4,8 @@
 .intellijPlatform
 .kotlin
 .qodana
+/docker/node_modules
+/docker/app.js
+/docker/dmn-diff.js
+/docker/styles.css
 build
