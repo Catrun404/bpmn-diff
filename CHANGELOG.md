@@ -6,7 +6,7 @@
 
 ## [1.1.1] - 2026-05-30
 
-### Deps
+### Changed
 
 - Update Platform Version to 2026.1
 

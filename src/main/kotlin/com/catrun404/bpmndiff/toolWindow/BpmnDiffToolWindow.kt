@@ -212,7 +212,7 @@ class BpmnDiffToolWindow(
         ProgressManager.getInstance()
             .run(object : Task.Backgroundable(project, BpmnDiffBundle.message("progress.updating.files"), false) {
                 override fun run(indicator: ProgressIndicator) {
-                    val foundFiles = gitService.getChangedBpmnFiles(repository, leftRef, rightRef)
+                    val foundFiles = gitService.getChangedFiles(repository, leftRef, rightRef)
                     ApplicationManager.getApplication().invokeLater {
                         if (project.isDisposed) return@invokeLater
                         files = foundFiles

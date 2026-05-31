@@ -1,0 +1,14 @@
+{
+  "name": "bpmn-diff",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "jsdom": "^24.0.0"
+  }
+}

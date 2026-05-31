@@ -15,6 +15,11 @@
                   fieldName="INSTANCE"
                   extensions="bpmn"
                   language="XML"/>
+        <fileType name="DMN"
+                  implementationClass="com.catrun404.bpmndiff.DmnFileType"
+                  fieldName="INSTANCE"
+                  extensions="dmn"
+                  language="XML"/>
         <toolWindow id="BPMN-Diff"
                     anchor="bottom"
                     icon="com.catrun404.bpmndiff.BpmnDiffIcons.ToolWindow"

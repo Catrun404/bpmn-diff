@@ -1,0 +1,19 @@
+services:
+  bpmn-diff-local:
+    image: node:22-alpine
+    working_dir: /app/docker
+    volumes:
+      - ..:/app
+#      - ../src/main/resources/www/app.js:/app/docker/app.js
+#      - ../src/main/resources/www/dmn-diff.js:/app/docker/dmn-diff.js
+#      - ../src/main/resources/www/styles.css:/app/docker/styles.css
+    ports:
+      - "5173:5173"
+    command: >
+      sh -c "
+        cp /app/src/main/resources/www/app.js /app/docker/app.js &&
+        cp /app/src/main/resources/www/dmn-diff.js /app/docker/dmn-diff.js &&
+        cp /app/src/main/resources/www/styles.css /app/docker/styles.css &&
+        npm run dev
+      "
+    restart: unless-stopped

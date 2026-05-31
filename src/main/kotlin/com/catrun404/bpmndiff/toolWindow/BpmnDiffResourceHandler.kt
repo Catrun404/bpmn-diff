@@ -48,8 +48,9 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
             mimeType = URLConnection.guessContentTypeFromName(path) ?: when {
                 path.endsWith(".js") -> "application/javascript"
                 path.endsWith(".css") -> "text/css"
-                path.endsWith(".bpmn") -> "application/xml"
-                else -> TEXT_PLAIN_TYPE
+                path.endsWith(".html") -> "text/html"
+                path.endsWith(".bpmn") || path.endsWith(".dmn") -> "application/xml"
+                else -> URLConnection.guessContentTypeFromName(path) ?: TEXT_PLAIN_TYPE
             }
             callback.Continue()
             return true
@@ -102,13 +103,17 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
         bytesRead: IntRef,
         callback: CefCallback
     ): Boolean {
-        val available = inputStream?.available() ?: 0
-        if (available <= 0) {
-            inputStream?.close()
-            return false
+
+        val stream = inputStream ?: return false
+
+        val read = stream.read(dataOut, 0, bytesToRead)
+        if (read > 0) {
+            bytesRead.set(read)
+            return true
         }
-        val read = inputStream?.read(dataOut, 0, available.coerceAtMost(bytesToRead)) ?: 0
-        bytesRead.set(read)
-        return true
+
+        inputStream?.close()
+        inputStream = null
+        return false
     }
 }
