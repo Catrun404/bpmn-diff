@@ -265,7 +265,6 @@ function attachSyncHandlers() {
     } catch (e) {
     }
 
-    // DMN View Sync
     if (viewers.type === 'dmn') {
         viewers.right.on('views.changed', (event) => {
             if (isSyncing) return;
@@ -277,7 +276,6 @@ function attachSyncHandlers() {
             }
             isSyncing = false;
 
-            // Re-apply highlights when view changes
             refreshDmnViewHighlight(event.activeView);
         });
     }
@@ -526,7 +524,6 @@ function renderDmnDiff(diff, show) {
 
     ui.changesList.innerHTML = '';
 
-    // cleanup markers
     [canvasLeft, canvasRight].forEach(canvas => {
         if (!canvas) return;
         const registry = canvas === canvasLeft ? registryLeft : registryRight;
@@ -544,17 +541,18 @@ function renderDmnDiff(diff, show) {
         items.push({id, action, change});
     });
 
-    // add markers in DRD view (graph)
     if (show) {
         items.forEach(({id, action}) => {
-            const cls = action === 'added' ? 'diff-added' : (action === 'removed' ? 'diff-removed' : 'diff-changed');
-            if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, cls);
-            if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, cls);
+            const className = getDiffClass(action);
+            if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, className);
+            if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, className);
         });
     }
 
-    // build list
     items.forEach(({id, action}) => {
+        if (!action) {
+            return;
+        }
         let type = 'Element';
         let name = '';
         const el = (registryRight && registryRight.get(id)) || (registryLeft && registryLeft.get(id));
@@ -583,8 +581,15 @@ function renderDmnDiff(diff, show) {
         ui.changesList.appendChild(li);
     });
 
-    // decision table cell coloring
     refreshDmnViewHighlight();
+}
+
+function getDiffClass(type) {
+    return ({
+        added: 'diff-added',
+        removed: 'diff-removed',
+        modified: 'diff-changed'
+    }[type] || 'diff-changed');
 }
 
 function refreshDmnViewHighlight(activeView) {
@@ -595,10 +600,9 @@ function refreshDmnViewHighlight(activeView) {
     const diff = state.currentDiff;
     const show = state.showDiff;
 
-    const newCanvasRoot = document.getElementById('canvas-right');
     const oldCanvasRoot = document.getElementById('canvas-left');
+    const newCanvasRoot = document.getElementById('canvas-right');
 
-    // clear previous coloring
     [newCanvasRoot, oldCanvasRoot].forEach(root => {
         if (!root) return;
         root.querySelectorAll('tr, td, th').forEach(el => {
@@ -612,12 +616,6 @@ function refreshDmnViewHighlight(activeView) {
         const changes = diff?.[elementId]?.changes;
 
         if (changes) {
-            const getDiffClass = (type) => ({
-                added: 'diff-added',
-                removed: 'diff-removed',
-                modified: 'diff-changed'
-            }[type] || 'diff-changed');
-
             const getElement = (root, elementId) =>
                 root?.querySelector(`[data-element-id="${elementId}"], [data-col-id="${elementId}"]`);
 
@@ -637,17 +635,14 @@ function refreshDmnViewHighlight(activeView) {
                 if (!id) return;
 
                 const className = getDiffClass(type);
-
                 if (type === 'removed') {
                     highlightElement(oldCanvasRoot, id, className, true);
                     return;
                 }
-
                 if (type === 'added') {
                     highlightElement(newCanvasRoot, id, className, true);
                     return;
                 }
-
                 highlightElement(newCanvasRoot, id, className);
                 highlightElement(oldCanvasRoot, id, className);
             };
@@ -673,10 +668,9 @@ function refreshDmnViewHighlight(activeView) {
 
         if (show && canvasLeft && canvasRight) {
             Object.entries(diff || {}).forEach(([id, change]) => {
-                const action = change.changeType === 'modified' ? 'changed' : change.changeType;
-                const cls = action === 'added' ? 'diff-added' : (action === 'removed' ? 'diff-removed' : 'diff-changed');
-                if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, cls);
-                if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, cls);
+                const className = getDiffClass(change.changeType);
+                if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, className);
+                if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, className);
             });
         }
     }
