@@ -351,7 +351,7 @@ function renderDiff(diff, show) {
 
         Object.entries(diff).forEach(([id, elementDiff]) => {
             const action = elementDiff.changeType === 'modified' ? 'changed' : elementDiff.changeType;
-            
+
             let element = null;
             if (registryRight) {
                 element = registryRight.get(id) || (registryLeft ? registryLeft.get(id) : null);
