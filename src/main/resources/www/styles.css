@@ -239,3 +239,16 @@ footer a:hover {
 .djs-connection.diff-layout-changed .djs-visual path {
     fill: none !important;
 }
+
+/* DMN Decision Table highlights */
+tr.diff-added td, tr.diff-added th, td.diff-added, th.diff-added {
+    background-color: #d4f7e1 !important;
+}
+
+tr.diff-removed td, tr.diff-removed th, td.diff-removed, th.diff-removed {
+    background-color: #fce4e2 !important;
+}
+
+tr.diff-changed td, tr.diff-changed th, td.diff-changed, th.diff-changed {
+    background-color: #fef5d1 !important;
+}

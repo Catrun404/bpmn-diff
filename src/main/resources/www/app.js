@@ -4,7 +4,7 @@ import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.2.0";
 
 import DmnViewer from "https://esm.sh/dmn-js@17.8.0/lib/NavigatedViewer";
 import {DmnModdle} from "https://esm.sh/dmn-moddle@12.0.1";
-import {dmnDiff, highlightChanges, syncViews} from "./dmn-diff.js";
+import DmnDiffer from "./dmn-js-differ/index.js";
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
@@ -33,16 +33,13 @@ const EMPTY_DMN = `<?xml version="1.0" encoding="UTF-8"?>
   </dmndi:DMNDI>
 </definitions>`;
 
-export const ui = {
+const ui = {
     changesList: document.getElementById('changes-list'),
     noDiagramAlert: document.getElementById('no-diagram-alert'),
     diffItemsContainer: document.getElementById('diff-items-container'),
 
     canvasLeft: '#canvas-left',
-    canvasRight: '#canvas-right',
-
-    fileLeft: document.getElementById('file-left'),
-    fileRight: document.getElementById('file-right')
+    canvasRight: '#canvas-right'
 };
 
 const state = {
@@ -51,6 +48,7 @@ const state = {
     rightXml: null,
     currentDiff: null,
     isDiffing: false,
+    docType: 'bpmn', // 'bpmn' | 'dmn'
 
     gitFile: null,
     gitLeftRef: null,
@@ -64,32 +62,37 @@ const state = {
         return this.mode !== 'manual'
             ? !!this.gitFile && !!this.gitLeftRef && !!this.gitRightRef
             : (!!this.leftXml && !!this.rightXml);
-    },
-
-    get diagramType() {
-        const file = this.mode === 'manual' ? (this.manualLeftFileName || this.manualRightFileName) : this.gitFile;
-        if (file && file.toLowerCase().endsWith('.dmn')) return 'dmn';
-        return 'bpmn';
     }
 };
 
-let viewers = {
-    type: null,
+const viewers = {
     left: null,
     right: null,
-    moddle: null
+    moddle: null,
+    type: null,
+    syncAttached: false
 };
 
 function ensureViewers(type) {
-    if (viewers.type === type) return;
+    if (viewers.type === type && viewers.left) return;
 
-    if (viewers.left) viewers.left.destroy();
-    if (viewers.right) viewers.right.destroy();
+    if (viewers.left) {
+        try {
+            viewers.left.destroy();
+        } catch (e) {
+            console.error('Error destroying left viewer', e);
+        }
+    }
+    if (viewers.right) {
+        try {
+            viewers.right.destroy();
+        } catch (e) {
+            console.error('Error destroying right viewer', e);
+        }
+    }
 
-    const containerLeft = document.querySelector(ui.canvasLeft);
-    const containerRight = document.querySelector(ui.canvasRight);
-    containerLeft.innerHTML = '';
-    containerRight.innerHTML = '';
+    viewers.type = type;
+    viewers.syncAttached = false;
 
     if (type === 'dmn') {
         viewers.left = new DmnViewer({container: ui.canvasLeft});
@@ -100,19 +103,14 @@ function ensureViewers(type) {
         viewers.right = new BpmnViewer({container: ui.canvasRight});
         viewers.moddle = new BpmnModdle();
     }
-    viewers.type = type;
-    if (type === 'dmn') {
-        syncViews(viewers.left, viewers.right);
-        viewers.right.on('views.changed', () => {
-            if (state.currentDiff && state.showDiff) {
-                renderDiff(state.currentDiff, state.showDiff);
-            }
-        });
-    }
-    syncViewers();
+
+    attachSyncHandlers();
 }
 
-export async function switchMode(newMode) {
+// Initial setup
+ensureViewers('bpmn');
+
+async function switchMode(newMode) {
     state.mode = newMode;
     const isGit = newMode !== 'manual';
 
@@ -215,52 +213,96 @@ function updateTabTitle() {
     }
 }
 
-function syncViewers() {
-    if (!viewers.left || !viewers.right) return;
+function attachSyncHandlers() {
+    if (!viewers.left || !viewers.right || viewers.syncAttached) return;
+
+    function getService(viewer, name) {
+        try {
+            if (viewers.type === 'dmn') {
+                const av = viewer.getActiveViewer && viewer.getActiveViewer();
+                return av && av.get ? av.get(name) : null;
+            }
+            return viewer.get ? viewer.get(name) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    let canvasLeft = getService(viewers.left, 'canvas');
+    let canvasRight = getService(viewers.right, 'canvas');
+
+    let isSyncing = false;
+
+    function sync(source, target) {
+        if (isSyncing || !source || !target) return;
+        isSyncing = true;
+        try {
+            const viewbox = source.viewbox();
+            target.viewbox(viewbox);
+        } catch (e) {
+        }
+        isSyncing = false;
+    }
+
+    const onLeftViewboxChanged = () => {
+        canvasLeft = getService(viewers.left, 'canvas') || canvasLeft;
+        canvasRight = getService(viewers.right, 'canvas') || canvasRight;
+        sync(canvasLeft, canvasRight);
+    };
+
+    const onRightViewboxChanged = () => {
+        canvasLeft = getService(viewers.left, 'canvas') || canvasLeft;
+        canvasRight = getService(viewers.right, 'canvas') || canvasRight;
+        sync(canvasRight, canvasLeft);
+    };
 
     try {
-        const canvasLeft = viewers.left.get('canvas');
-        const canvasRight = viewers.right.get('canvas');
+        viewers.left.on('canvas.viewbox.changed', onLeftViewboxChanged);
+    } catch (e) {
+    }
+    try {
+        viewers.right.on('canvas.viewbox.changed', onRightViewboxChanged);
+    } catch (e) {
+    }
 
-        let isSyncing = false;
-
-        function sync(source, target) {
+    // DMN View Sync
+    if (viewers.type === 'dmn') {
+        viewers.right.on('views.changed', (event) => {
             if (isSyncing) return;
             isSyncing = true;
             try {
-                const viewbox = source.viewbox();
-                target.viewbox(viewbox);
-            } catch (e) {}
-            isSyncing = false;
-        }
-
-        viewers.left.on('canvas.viewbox.changed', () => sync(canvasLeft, canvasRight));
-        viewers.right.on('canvas.viewbox.changed', () => sync(canvasRight, canvasLeft));
-
-        function handleElementClick(event) {
-            const element = event.element;
-            if (!element) return;
-
-            const li = ui.changesList.querySelector(`li[data-id="${element.id}"]`);
-            if (li) {
-                ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
-                li.classList.add('selected');
-                li.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+                const viewToOpen = viewers.left.getViews().find(v => v.id === event.activeView.id);
+                if (viewToOpen) viewers.left.open(viewToOpen);
+            } catch (e) {
             }
-        }
+            isSyncing = false;
 
-        viewers.left.on('element.click', handleElementClick);
-        viewers.right.on('element.click', handleElementClick);
-    } catch (e) {}
+            // Re-apply highlights when view changes
+            refreshDmnViewHighlight(event.activeView);
+        });
+    }
+
+    function handleElementClick(event) {
+        const element = event.element;
+        if (!element) return;
+
+        const li = ui.changesList.querySelector(`li[data-id="${element.id}"]`);
+        if (li) {
+            ui.changesList.querySelectorAll('li')
+                .forEach(el => el.classList.remove('selected'));
+
+            li.classList.add('selected');
+            li.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        }
+    }
+
+    viewers.left.on('element.click', handleElementClick);
+    viewers.right.on('element.click', handleElementClick);
+    viewers.syncAttached = true;
 }
 
 async function doDiff() {
     if (state.isDiffing) return;
-
-    const type = state.diagramType;
-    ensureViewers(type);
-    const emptyXml = type === 'dmn' ? EMPTY_DMN : EMPTY_BPMN;
-    const diffFn = type === 'dmn' ? dmnDiff : bpmnDiff;
 
     if (state.mode !== 'manual') {
         const file = state.gitFile;
@@ -272,8 +314,20 @@ async function doDiff() {
         state.isDiffing = true;
         try {
             [state.leftXml, state.rightXml] = await Promise.all([
-                fetch(`/api/content?ref=${leftRef}&path=${file}`).then(r => r.text()).then(t => t.trim() === '' ? emptyXml : t),
-                fetch(`/api/content?ref=${rightRef}&path=${file}`).then(r => r.text()).then(t => t.trim() === '' ? emptyXml : t)
+                fetch(`/api/content?ref=${leftRef}&path=${file}`).then(r => {
+                    if (!r.ok) throw new Error(`Failed to fetch left content: ${r.status}`);
+                    return r.text();
+                }).then(text => {
+                    const t = text.trim();
+                    return t === '' ? (file.endsWith('.dmn') ? EMPTY_DMN : EMPTY_BPMN) : text;
+                }),
+                fetch(`/api/content?ref=${rightRef}&path=${file}`).then(r => {
+                    if (!r.ok) throw new Error(`Failed to fetch right content: ${r.status}`);
+                    return r.text();
+                }).then(text => {
+                    const t = text.trim();
+                    return t === '' ? (file.endsWith('.dmn') ? EMPTY_DMN : EMPTY_BPMN) : text;
+                })
             ]);
         } catch (err) {
             console.error(err);
@@ -286,29 +340,58 @@ async function doDiff() {
     }
 
     try {
-        const [leftDefs, rightDefs] = await Promise.all([
-            viewers.moddle.fromXML(state.leftXml).then(r => r.rootElement),
-            viewers.moddle.fromXML(state.rightXml).then(r => r.rootElement),
-        ]).catch(err => {
-            throw new Error(`Failed to parse XML: ${err.message}`);
-        });
+        const filePath = state.mode !== 'manual' ? (state.gitFile || '') : '';
+        const detectedType = detectDocType(state.rightXml || state.leftXml || '', filePath);
+        state.docType = detectedType;
 
-        state.currentDiff = diffFn(leftDefs, rightDefs) || {};
+        ensureViewers(detectedType);
+
+        if (detectedType === 'bpmn') {
+            const [leftDefs, rightDefs] = await Promise.all([
+                viewers.moddle.fromXML(state.leftXml).then(r => r.rootElement),
+                viewers.moddle.fromXML(state.rightXml).then(r => r.rootElement),
+            ]);
+            state.currentDiff = bpmnDiff(leftDefs, rightDefs) || {};
+        } else {
+            const [leftResult, rightResult] = await Promise.all([
+                viewers.moddle.fromXML(state.leftXml),
+                viewers.moddle.fromXML(state.rightXml),
+            ]);
+            const dmnDiffer = new DmnDiffer();
+            state.currentDiff = await dmnDiffer.compute(leftResult.rootElement, rightResult.rootElement) || {};
+        }
 
         ui.noDiagramAlert.style.display = 'none';
         ui.diffItemsContainer.style.display = 'flex';
 
+        console.log('Importing XML into viewers...');
         await Promise.all([
             viewers.left.importXML(state.leftXml),
             viewers.right.importXML(state.rightXml)
-        ]).catch(err => {
-            throw new Error(`Failed to import diagram: ${err.message}`);
-        });
+        ]);
 
+        const getCanvas = (viewer) => {
+            try {
+                if (viewers.type === 'dmn') {
+                    const av = viewer.getActiveViewer && viewer.getActiveViewer();
+                    return av && av.get ? av.get('canvas') : null;
+                }
+                return viewer.get ? viewer.get('canvas') : null;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const leftCanvas = getCanvas(viewers.left);
+        const rightCanvas = getCanvas(viewers.right);
         try {
-            viewers.left.get('canvas').zoom('fit-viewport');
-            viewers.right.get('canvas').zoom('fit-viewport');
-        } catch (e) {}
+            leftCanvas && leftCanvas.zoom('fit-viewport');
+        } catch (e) {
+        }
+        try {
+            rightCanvas && rightCanvas.zoom('fit-viewport');
+        } catch (e) {
+        }
 
         renderDiff(state.currentDiff, state.showDiff);
     } catch (err) {
@@ -322,110 +405,286 @@ async function doDiff() {
 }
 
 function renderDiff(diff, show) {
-    let registryLeft, registryRight, canvasLeft, canvasRight;
-    try {
-        registryLeft = viewers.left.get('elementRegistry');
-        registryRight = viewers.right.get('elementRegistry');
-        canvasLeft = viewers.left.get('canvas');
-        canvasRight = viewers.right.get('canvas');
-    } catch (e) {
-        // If we can't get these, we might be in a non-diagram view (e.g. DMN Decision Table)
-        // We still want to continue if it's DMN
-        if (viewers.type !== 'dmn') {
-            ui.changesList.innerHTML = '<li>Diff highlighting only supported in diagram view.</li>';
-            return;
-        }
-    }
-
-    ui.changesList.innerHTML = '';
-
-    if (canvasLeft && canvasRight) {
-        [canvasLeft, canvasRight].forEach(canvas => {
-            const registry = canvas === canvasLeft ? registryLeft : registryRight;
-            registry.getAll().forEach(el => {
-                canvas.removeMarker(el.id, 'diff-added');
-                canvas.removeMarker(el.id, 'diff-removed');
-                canvas.removeMarker(el.id, 'diff-changed');
-                canvas.removeMarker(el.id, 'diff-layout-changed');
-            });
-        });
-    }
-
-    if (viewers.type === 'dmn') {
-        if (show) {
-            highlightChanges(viewers.left, viewers.right, diff);
-        }
-
-        Object.entries(diff).forEach(([id, elementDiff]) => {
-            const action = elementDiff.changeType === 'modified' ? 'changed' : elementDiff.changeType;
-
-            let element = null;
-            if (registryRight) {
-                element = registryRight.get(id) || (registryLeft ? registryLeft.get(id) : null);
-            }
-
-            if (!element) {
-                const definitions = viewers.right.getDefinitions() || viewers.left.getDefinitions();
-                element = definitions.drgElement?.find(e => e.id === id);
-            }
-
-            const businessObject = element?.businessObject || element;
-            const type = (businessObject?.$type || '').replace(/.*:/, '') || 'Element';
-            const label = businessObject?.name || id;
-
-            addChange(id, type, action, businessObject || {id});
-        });
-
-        if (ui.changesList.innerHTML === '') {
-            ui.changesList.innerHTML = '<li>No changes detected</li>';
-        }
-        return;
-    }
-
-    const added = diff._added || diff.added || {};
-    const removed = diff._removed || diff.removed || {};
-    const changed = diff._changed || diff.changed || {};
-    const layoutChanged = diff._layoutChanged || diff.layoutChanged || {};
-
-    function addChange(id, type, action, element) {
-        const businessObject = element.businessObject || element.model || element;
-        const label = businessObject.name || id;
-        const li = document.createElement('li');
-        li.dataset.id = id;
-        li.className = action;
-        li.innerHTML = `
-            <span class="diff-type">${action}</span>
-            <span class="diff-label">${type}: ${label}</span>
-        `;
-        li.onclick = () => {
-            ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
-            li.classList.add('selected');
-            try {
-                const elLeft = registryLeft ? registryLeft.get(id) : null;
-                const elRight = registryRight ? registryRight.get(id) : null;
-                if (elLeft) canvasLeft.scrollToElement(elLeft);
-                if (elRight) canvasRight.scrollToElement(elRight);
-            } catch (e) {}
-        };
-        ui.changesList.appendChild(li);
-
-        if (show && canvasLeft && canvasRight) {
-            const marker = `diff-${action === 'layoutChanged' ? 'layout-changed' : action}`;
-            if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, marker);
-            if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, marker);
-        }
-    }
-
-    Object.keys(removed).forEach(id => addChange(id, (removed[id].$type || '').replace(/.*:/, ''), 'removed', removed[id]));
-    Object.keys(added).forEach(id => addChange(id, (added[id].$type || '').replace(/.*:/, ''), 'added', added[id]));
-    Object.keys(layoutChanged).forEach(id => {
-        if (!changed[id]) addChange(id, (layoutChanged[id].after?.$type || '').replace(/.*:/, ''), 'layoutChanged', layoutChanged[id].after || layoutChanged[id]);
-    });
-    Object.keys(changed).forEach(id => addChange(id, (changed[id].model?.$type || '').replace(/.*:/, ''), 'changed', changed[id].model || changed[id]));
-
-    if (ui.changesList.innerHTML === '') {
-        ui.changesList.innerHTML = '<li>No changes detected</li>';
+    if (state.docType === 'dmn') {
+        renderDmnDiff(diff, show);
+    } else {
+        renderBpmnDiff(diff, show);
     }
 }
 
-syncViewers();
+function renderBpmnDiff(diff, show) {
+    const registryLeft = viewers.left.get('elementRegistry');
+    const registryRight = viewers.right.get('elementRegistry');
+    const canvasLeft = viewers.left.get('canvas');
+    const canvasRight = viewers.right.get('canvas');
+
+    ui.changesList.innerHTML = '';
+
+    [canvasLeft, canvasRight].forEach(canvas => {
+        const registry = canvas === canvasLeft ? registryLeft : registryRight;
+        registry.getAll().forEach(el => {
+            canvas.removeMarker(el.id, 'diff-added');
+            canvas.removeMarker(el.id, 'diff-removed');
+            canvas.removeMarker(el.id, 'diff-changed');
+            canvas.removeMarker(el.id, 'diff-layout-changed');
+        });
+    });
+
+    const items = [];
+
+    for (const id in diff._added) {
+        items.push({id, action: 'added', element: diff._added[id]});
+    }
+
+    for (const id in diff._removed) {
+        items.push({id, action: 'removed', element: diff._removed[id]});
+    }
+
+    for (const id in diff._changed) {
+        items.push({id, action: 'changed', element: diff._changed[id]});
+    }
+
+    for (const id in diff._layoutChanged) {
+        if (!diff._changed[id] && !diff._added[id]) {
+            items.push({id, action: 'layoutChanged', element: diff._layoutChanged[id]});
+        }
+    }
+
+    items.forEach(item => {
+        const {id, action, element} = item;
+        const targetElement = element.model || element;
+        const businessObject = targetElement.businessObject || targetElement;
+        const rawType = businessObject.$type || 'Element';
+        const type = rawType.replace(/^bpmn:/, '');
+        const name = businessObject.name || '';
+
+        const isProcess = type === 'Process';
+        let markerClass;
+        if (action === 'added') markerClass = 'diff-added';
+        else if (action === 'removed') markerClass = 'diff-removed';
+        else if (action === 'layoutChanged') markerClass = 'diff-layout-changed';
+        else markerClass = 'diff-changed';
+
+        if (show && !isProcess) {
+            if (registryLeft.get(id)) {
+                canvasLeft.addMarker(id, markerClass);
+            }
+            if (registryRight.get(id)) {
+                canvasRight.addMarker(id, markerClass);
+            }
+        }
+
+        const li = document.createElement('li');
+        li.className = action;
+        li.dataset.id = id;
+
+        const labelText = name ? `${name} (id=${id})` : `id=${id}`;
+
+        let details = '';
+        if (action === 'changed' && element.attrs) {
+            details = Object.entries(element.attrs)
+                .map(([key, val]) => `${key}: ${val.oldValue} -> ${val.newValue}`)
+                .join('\n');
+        }
+
+        if (details) {
+            li.title = details;
+        }
+
+        li.innerHTML = `
+            <span class="diff-type">${action}</span>
+            <span class="diff-label">${type}: ${labelText}</span>
+            ${details ? `<span class="diff-details">${details.replace(/\n/g, '<br/>')}</span>` : ''}
+        `;
+        li.addEventListener('click', () => {
+            const elLeft = registryLeft.get(id);
+            const elRight = registryRight.get(id);
+            if (elLeft) canvasLeft.scrollToElement(elLeft);
+            if (elRight) canvasRight.scrollToElement(elRight);
+
+            ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
+            li.classList.add('selected');
+        });
+        ui.changesList.appendChild(li);
+    });
+}
+
+function renderDmnDiff(diff, show) {
+    function getService(viewer, name) {
+        try {
+            const av = viewer.getActiveViewer && viewer.getActiveViewer();
+            return av && av.get ? av.get(name) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    const registryLeft = getService(viewers.left, 'elementRegistry');
+    const registryRight = getService(viewers.right, 'elementRegistry');
+    const canvasLeft = getService(viewers.left, 'canvas');
+    const canvasRight = getService(viewers.right, 'canvas');
+
+    ui.changesList.innerHTML = '';
+
+    // cleanup markers
+    [canvasLeft, canvasRight].forEach(canvas => {
+        if (!canvas) return;
+        const registry = canvas === canvasLeft ? registryLeft : registryRight;
+        if (!registry) return;
+        registry.getAll().forEach(el => {
+            canvas.removeMarker(el.id, 'diff-added');
+            canvas.removeMarker(el.id, 'diff-removed');
+            canvas.removeMarker(el.id, 'diff-changed');
+        });
+    });
+
+    const items = [];
+    Object.entries(diff || {}).forEach(([id, change]) => {
+        const action = change.changeType === 'modified' ? 'changed' : change.changeType;
+        items.push({id, action, change});
+    });
+
+    // add markers in DRD view (graph)
+    if (show) {
+        items.forEach(({id, action}) => {
+            const cls = action === 'added' ? 'diff-added' : (action === 'removed' ? 'diff-removed' : 'diff-changed');
+            if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, cls);
+            if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, cls);
+        });
+    }
+
+    // build list
+    items.forEach(({id, action}) => {
+        let type = 'Element';
+        let name = '';
+        const el = (registryRight && registryRight.get(id)) || (registryLeft && registryLeft.get(id));
+        if (el) {
+            const bo = (el.businessObject || el);
+            const rawType = bo.$type || '';
+            type = rawType.replace(/^dmn:/, '') || type;
+            name = bo.name || name;
+        }
+        const li = document.createElement('li');
+        li.className = action;
+        li.dataset.id = id;
+        const labelText = name ? `${name} (id=${id})` : `id=${id}`;
+        li.innerHTML = `
+            <span class="diff-type">${action}</span>
+            <span class="diff-label">${type}: ${labelText}</span>
+        `;
+        li.addEventListener('click', () => {
+            const elLeft = registryLeft && registryLeft.get(id);
+            const elRight = registryRight && registryRight.get(id);
+            if (elLeft) canvasLeft.scrollToElement(elLeft);
+            if (elRight) canvasRight.scrollToElement(elRight);
+            ui.changesList.querySelectorAll('li').forEach(elm => elm.classList.remove('selected'));
+            li.classList.add('selected');
+        });
+        ui.changesList.appendChild(li);
+    });
+
+    // decision table cell coloring
+    refreshDmnViewHighlight();
+}
+
+function refreshDmnViewHighlight(activeView) {
+    if (viewers.type !== 'dmn') return;
+    if (!activeView) activeView = viewers.right.getActiveView && viewers.right.getActiveView();
+    if (!activeView) return;
+
+    const diff = state.currentDiff;
+    const show = state.showDiff;
+
+    const newCanvasRoot = document.getElementById('canvas-right');
+    const oldCanvasRoot = document.getElementById('canvas-left');
+
+    // clear previous coloring
+    [newCanvasRoot, oldCanvasRoot].forEach(root => {
+        if (!root) return;
+        root.querySelectorAll('tr, td, th').forEach(el => {
+            el.classList.remove('diff-added', 'diff-removed', 'diff-changed');
+        });
+    });
+
+    if (activeView.type === 'decisionTable') {
+        if (!show) return;
+        const elementId = activeView.id;
+        const changes = diff?.[elementId]?.changes;
+
+        if (changes) {
+            const getDiffClass = (type) => ({
+                added: 'diff-added',
+                removed: 'diff-removed',
+                modified: 'diff-changed'
+            }[type] || 'diff-changed');
+
+            const getElement = (root, elementId) =>
+                root?.querySelector(`[data-element-id="${elementId}"], [data-col-id="${elementId}"]`);
+
+            const highlightElement = (root, elementId, className, includeRuleRow = false) => {
+                const element = getElement(root, elementId);
+                if (!element) return;
+
+                element.classList.add(className);
+
+                if (includeRuleRow && element.classList.contains('rule-index')) {
+                    element.closest('tr')?.classList.add(className);
+                }
+            };
+
+            const apply = (change, type) => {
+                const id = change.location?.id;
+                if (!id) return;
+
+                const className = getDiffClass(type);
+
+                if (type === 'removed') {
+                    highlightElement(oldCanvasRoot, id, className, true);
+                    return;
+                }
+
+                if (type === 'added') {
+                    highlightElement(newCanvasRoot, id, className, true);
+                    return;
+                }
+
+                highlightElement(newCanvasRoot, id, className);
+                highlightElement(oldCanvasRoot, id, className);
+            };
+
+            changes.added?.forEach(c => apply(c, 'added'));
+            changes.modified?.forEach(c => apply(c, 'modified'));
+            changes.removed?.forEach(c => apply(c, 'removed'));
+        }
+    } else if (activeView.type === 'drd') {
+        function getService(viewer, name) {
+            try {
+                const av = viewer.getActiveViewer && viewer.getActiveViewer();
+                return av && av.get ? av.get(name) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        const canvasLeft = getService(viewers.left, 'canvas');
+        const canvasRight = getService(viewers.right, 'canvas');
+        const registryLeft = getService(viewers.left, 'elementRegistry');
+        const registryRight = getService(viewers.right, 'elementRegistry');
+
+        if (show && canvasLeft && canvasRight) {
+            Object.entries(diff || {}).forEach(([id, change]) => {
+                const action = change.changeType === 'modified' ? 'changed' : change.changeType;
+                const cls = action === 'added' ? 'diff-added' : (action === 'removed' ? 'diff-removed' : 'diff-changed');
+                if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, cls);
+                if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, cls);
+            });
+        }
+    }
+}
+
+function detectDocType(xml, filePath) {
+    if (filePath && filePath.toLowerCase().endsWith('.dmn')) return 'dmn';
+    const x = (xml || '').toLowerCase();
+    if (x.includes('xmlns="https://www.omg.org/spec/dmn') || x.includes('<dmn:')) return 'dmn';
+    return 'bpmn';
+}

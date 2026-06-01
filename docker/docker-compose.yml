@@ -9,7 +9,6 @@ services:
     command: >
       sh -c "
         cp /app/src/main/resources/www/app.js /app/docker/app.js &&
-        cp /app/src/main/resources/www/dmn-diff.js /app/docker/dmn-diff.js &&
         cp /app/src/main/resources/www/styles.css /app/docker/styles.css &&
         cp -r /app/src/main/resources/www/dmn-js-differ /app/docker/dmn-js-differ &&
         npm run dev
