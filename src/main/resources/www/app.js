@@ -1,37 +1,7 @@
-import BpmnViewer from "https://esm.sh/bpmn-js@18.14.0/lib/NavigatedViewer";
-import {BpmnModdle} from "https://esm.sh/bpmn-moddle@10.0.0";
-import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.2.0";
+import {computeBpmnDiff, createBpmnModdle, createBpmnViewer, EMPTY_BPMN, renderBpmnDiff} from "./bpmn-diff.js";
+import {computeDmnDiff, createDmnModdle, createDmnViewer, EMPTY_DMN, refreshDmnViewHighlight, renderDmnDiff} from "./dmn-diff.js";
+import {detectDocType, getService} from "./utils.js";
 
-import DmnViewer from "https://esm.sh/dmn-js@17.8.0/lib/NavigatedViewer";
-import {DmnModdle} from "https://esm.sh/dmn-moddle@12.0.1";
-import DmnDiffer from "./dmn-js-differ/index.js";
-
-const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
-                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
-                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
-                  id="Definitions_1" 
-                  targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="EmptyProcess_0" isExecutable="false" />
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="EmptyProcess_0">
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
-
-const EMPTY_DMN = `<?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
-             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
-             id="Definitions_1"
-             name="Definitions_1"
-             namespace="http://camunda.org/schema/1.0/dmn">
-  <dmndi:DMNDI>
-    <dmndi:DMNDiagram id="DMNDiagram_1">
-    </dmndi:DMNDiagram>
-  </dmndi:DMNDI>
-</definitions>`;
 
 const ui = {
     changesList: document.getElementById('changes-list'),
@@ -80,14 +50,12 @@ function ensureViewers(type) {
         try {
             viewers.left.destroy();
         } catch (e) {
-            console.error('Error destroying left viewer', e);
         }
     }
     if (viewers.right) {
         try {
             viewers.right.destroy();
         } catch (e) {
-            console.error('Error destroying right viewer', e);
         }
     }
 
@@ -95,19 +63,18 @@ function ensureViewers(type) {
     viewers.syncAttached = false;
 
     if (type === 'dmn') {
-        viewers.left = new DmnViewer({container: ui.canvasLeft});
-        viewers.right = new DmnViewer({container: ui.canvasRight});
-        viewers.moddle = new DmnModdle();
+        viewers.left = createDmnViewer(ui.canvasLeft);
+        viewers.right = createDmnViewer(ui.canvasRight);
+        viewers.moddle = createDmnModdle();
     } else {
-        viewers.left = new BpmnViewer({container: ui.canvasLeft});
-        viewers.right = new BpmnViewer({container: ui.canvasRight});
-        viewers.moddle = new BpmnModdle();
+        viewers.left = createBpmnViewer(ui.canvasLeft);
+        viewers.right = createBpmnViewer(ui.canvasRight);
+        viewers.moddle = createBpmnModdle();
     }
 
     attachSyncHandlers();
 }
 
-// Initial setup
 ensureViewers('bpmn');
 
 async function switchMode(newMode) {
@@ -124,7 +91,6 @@ async function switchMode(newMode) {
 window.switchModeFromIJ = switchMode;
 
 window.setGitSelection = (leftRef, rightRef, file) => {
-    console.log('Git selection updated from IJ:', {leftRef, rightRef, file});
     state.gitLeftRef = leftRef;
     state.gitRightRef = rightRef;
     state.gitFile = file;
@@ -136,7 +102,6 @@ window.setGitSelection = (leftRef, rightRef, file) => {
 };
 
 window.setManualSelection = (side, base64Content, fileName) => {
-    console.log(`Manual selection updated from IJ: ${side} = ${fileName}`);
     const binaryString = atob(base64Content);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -155,7 +120,6 @@ window.setManualSelection = (side, base64Content, fileName) => {
 };
 
 window.setShowDiff = (show) => {
-    console.log('Show diff updated from IJ:', show);
     state.showDiff = show;
     if (state.currentDiff) {
         renderDiff(state.currentDiff, state.showDiff);
@@ -163,7 +127,6 @@ window.setShowDiff = (show) => {
 };
 
 window.initFromIJ = (mode, leftBranch, rightBranch, file, showDiff) => {
-    console.log('Initializing from IJ:', {mode, leftBranch, rightBranch, file, showDiff});
     state.mode = mode;
     state.gitLeftRef = leftBranch;
     state.gitRightRef = rightBranch;
@@ -216,20 +179,8 @@ function updateTabTitle() {
 function attachSyncHandlers() {
     if (!viewers.left || !viewers.right || viewers.syncAttached) return;
 
-    function getService(viewer, name) {
-        try {
-            if (viewers.type === 'dmn') {
-                const av = viewer.getActiveViewer && viewer.getActiveViewer();
-                return av && av.get ? av.get(name) : null;
-            }
-            return viewer.get ? viewer.get(name) : null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    let canvasLeft = getService(viewers.left, 'canvas');
-    let canvasRight = getService(viewers.right, 'canvas');
+    let canvasLeft = getService(viewers.left, 'canvas', viewers.type);
+    let canvasRight = getService(viewers.right, 'canvas', viewers.type);
 
     let isSyncing = false;
 
@@ -245,14 +196,14 @@ function attachSyncHandlers() {
     }
 
     const onLeftViewboxChanged = () => {
-        canvasLeft = getService(viewers.left, 'canvas') || canvasLeft;
-        canvasRight = getService(viewers.right, 'canvas') || canvasRight;
+        canvasLeft = getService(viewers.left, 'canvas', viewers.type) || canvasLeft;
+        canvasRight = getService(viewers.right, 'canvas', viewers.type) || canvasRight;
         sync(canvasLeft, canvasRight);
     };
 
     const onRightViewboxChanged = () => {
-        canvasLeft = getService(viewers.left, 'canvas') || canvasLeft;
-        canvasRight = getService(viewers.right, 'canvas') || canvasRight;
+        canvasLeft = getService(viewers.left, 'canvas', viewers.type) || canvasLeft;
+        canvasRight = getService(viewers.right, 'canvas', viewers.type) || canvasRight;
         sync(canvasRight, canvasLeft);
     };
 
@@ -276,7 +227,7 @@ function attachSyncHandlers() {
             }
             isSyncing = false;
 
-            refreshDmnViewHighlight(event.activeView);
+            refreshDmnViewHighlight(event.activeView, viewers, state);
         });
     }
 
@@ -328,7 +279,6 @@ async function doDiff() {
                 })
             ]);
         } catch (err) {
-            console.error(err);
             state.isDiffing = false;
             return;
         }
@@ -345,43 +295,21 @@ async function doDiff() {
         ensureViewers(detectedType);
 
         if (detectedType === 'bpmn') {
-            const [leftDefs, rightDefs] = await Promise.all([
-                viewers.moddle.fromXML(state.leftXml).then(r => r.rootElement),
-                viewers.moddle.fromXML(state.rightXml).then(r => r.rootElement),
-            ]);
-            state.currentDiff = bpmnDiff(leftDefs, rightDefs) || {};
+            state.currentDiff = await computeBpmnDiff(viewers.moddle, state.leftXml, state.rightXml);
         } else {
-            const [leftResult, rightResult] = await Promise.all([
-                viewers.moddle.fromXML(state.leftXml),
-                viewers.moddle.fromXML(state.rightXml),
-            ]);
-            const dmnDiffer = new DmnDiffer();
-            state.currentDiff = await dmnDiffer.compute(leftResult.rootElement, rightResult.rootElement) || {};
+            state.currentDiff = await computeDmnDiff(viewers.moddle, state.leftXml, state.rightXml);
         }
 
         ui.noDiagramAlert.style.display = 'none';
         ui.diffItemsContainer.style.display = 'flex';
 
-        console.log('Importing XML into viewers...');
         await Promise.all([
             viewers.left.importXML(state.leftXml),
             viewers.right.importXML(state.rightXml)
         ]);
 
-        const getCanvas = (viewer) => {
-            try {
-                if (viewers.type === 'dmn') {
-                    const av = viewer.getActiveViewer && viewer.getActiveViewer();
-                    return av && av.get ? av.get('canvas') : null;
-                }
-                return viewer.get ? viewer.get('canvas') : null;
-            } catch (e) {
-                return null;
-            }
-        };
-
-        const leftCanvas = getCanvas(viewers.left);
-        const rightCanvas = getCanvas(viewers.right);
+        const leftCanvas = getService(viewers.left, 'canvas', viewers.type);
+        const rightCanvas = getService(viewers.right, 'canvas', viewers.type);
         try {
             leftCanvas && leftCanvas.zoom('fit-viewport');
         } catch (e) {
@@ -391,9 +319,8 @@ async function doDiff() {
         } catch (e) {
         }
 
-        renderDiff(state.currentDiff, state.showDiff);
+        renderDiff(viewers, ui, state);
     } catch (err) {
-        console.error(err);
         ui.noDiagramAlert.style.display = 'block';
         ui.noDiagramAlert.innerHTML = `Error: ${err.message}`;
         ui.diffItemsContainer.style.display = 'none';
@@ -402,283 +329,10 @@ async function doDiff() {
     }
 }
 
-function renderDiff(diff, show) {
+function renderDiff(viewers, ui, state) {
     if (state.docType === 'dmn') {
-        renderDmnDiff(diff, show);
+        renderDmnDiff(viewers, ui, state);
     } else {
-        renderBpmnDiff(diff, show);
+        renderBpmnDiff(viewers, ui, state);
     }
-}
-
-function renderBpmnDiff(diff, show) {
-    const registryLeft = viewers.left.get('elementRegistry');
-    const registryRight = viewers.right.get('elementRegistry');
-    const canvasLeft = viewers.left.get('canvas');
-    const canvasRight = viewers.right.get('canvas');
-
-    ui.changesList.innerHTML = '';
-
-    [canvasLeft, canvasRight].forEach(canvas => {
-        const registry = canvas === canvasLeft ? registryLeft : registryRight;
-        registry.getAll().forEach(el => {
-            canvas.removeMarker(el.id, 'diff-added');
-            canvas.removeMarker(el.id, 'diff-removed');
-            canvas.removeMarker(el.id, 'diff-changed');
-            canvas.removeMarker(el.id, 'diff-layout-changed');
-        });
-    });
-
-    const items = [];
-
-    for (const id in diff._added) {
-        items.push({id, action: 'added', element: diff._added[id]});
-    }
-
-    for (const id in diff._removed) {
-        items.push({id, action: 'removed', element: diff._removed[id]});
-    }
-
-    for (const id in diff._changed) {
-        items.push({id, action: 'changed', element: diff._changed[id]});
-    }
-
-    for (const id in diff._layoutChanged) {
-        if (!diff._changed[id] && !diff._added[id]) {
-            items.push({id, action: 'layoutChanged', element: diff._layoutChanged[id]});
-        }
-    }
-
-    items.forEach(item => {
-        const {id, action, element} = item;
-        const targetElement = element.model || element;
-        const businessObject = targetElement.businessObject || targetElement;
-        const rawType = businessObject.$type || 'Element';
-        const type = rawType.replace(/^bpmn:/, '');
-        const name = businessObject.name || '';
-
-        const isProcess = type === 'Process';
-        let markerClass;
-        if (action === 'added') markerClass = 'diff-added';
-        else if (action === 'removed') markerClass = 'diff-removed';
-        else if (action === 'layoutChanged') markerClass = 'diff-layout-changed';
-        else markerClass = 'diff-changed';
-
-        if (show && !isProcess) {
-            if (registryLeft.get(id)) {
-                canvasLeft.addMarker(id, markerClass);
-            }
-            if (registryRight.get(id)) {
-                canvasRight.addMarker(id, markerClass);
-            }
-        }
-
-        const li = document.createElement('li');
-        li.className = action;
-        li.dataset.id = id;
-
-        const labelText = name ? `${name} (id=${id})` : `id=${id}`;
-
-        let details = '';
-        if (action === 'changed' && element.attrs) {
-            details = Object.entries(element.attrs)
-                .map(([key, val]) => `${key}: ${val.oldValue} -> ${val.newValue}`)
-                .join('\n');
-        }
-
-        if (details) {
-            li.title = details;
-        }
-
-        li.innerHTML = `
-            <span class="diff-type">${action}</span>
-            <span class="diff-label">${type}: ${labelText}</span>
-            ${details ? `<span class="diff-details">${details.replace(/\n/g, '<br/>')}</span>` : ''}
-        `;
-        li.addEventListener('click', () => {
-            const elLeft = registryLeft.get(id);
-            const elRight = registryRight.get(id);
-            if (elLeft) canvasLeft.scrollToElement(elLeft);
-            if (elRight) canvasRight.scrollToElement(elRight);
-
-            ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
-            li.classList.add('selected');
-        });
-        ui.changesList.appendChild(li);
-    });
-}
-
-function renderDmnDiff(diff, show) {
-    function getService(viewer, name) {
-        try {
-            const av = viewer.getActiveViewer && viewer.getActiveViewer();
-            return av && av.get ? av.get(name) : null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    const registryLeft = getService(viewers.left, 'elementRegistry');
-    const registryRight = getService(viewers.right, 'elementRegistry');
-    const canvasLeft = getService(viewers.left, 'canvas');
-    const canvasRight = getService(viewers.right, 'canvas');
-
-    ui.changesList.innerHTML = '';
-
-    [canvasLeft, canvasRight].forEach(canvas => {
-        if (!canvas) return;
-        const registry = canvas === canvasLeft ? registryLeft : registryRight;
-        if (!registry) return;
-        registry.getAll().forEach(el => {
-            canvas.removeMarker(el.id, 'diff-added');
-            canvas.removeMarker(el.id, 'diff-removed');
-            canvas.removeMarker(el.id, 'diff-changed');
-        });
-    });
-
-    const items = [];
-    Object.entries(diff || {}).forEach(([id, change]) => {
-        const action = change.changeType === 'modified' ? 'changed' : change.changeType;
-        items.push({id, action, change});
-    });
-
-    if (show) {
-        items.forEach(({id, action}) => {
-            const className = getDiffClass(action);
-            if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, className);
-            if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, className);
-        });
-    }
-
-    items.forEach(({id, action}) => {
-        if (!action) {
-            return;
-        }
-        let type = 'Element';
-        let name = '';
-        const el = (registryRight && registryRight.get(id)) || (registryLeft && registryLeft.get(id));
-        if (el) {
-            const bo = (el.businessObject || el);
-            const rawType = bo.$type || '';
-            type = rawType.replace(/^dmn:/, '') || type;
-            name = bo.name || name;
-        }
-        const li = document.createElement('li');
-        li.className = action;
-        li.dataset.id = id;
-        const labelText = name ? `${name} (id=${id})` : `id=${id}`;
-        li.innerHTML = `
-            <span class="diff-type">${action}</span>
-            <span class="diff-label">${type}: ${labelText}</span>
-        `;
-        li.addEventListener('click', () => {
-            const elLeft = registryLeft && registryLeft.get(id);
-            const elRight = registryRight && registryRight.get(id);
-            if (elLeft) canvasLeft.scrollToElement(elLeft);
-            if (elRight) canvasRight.scrollToElement(elRight);
-            ui.changesList.querySelectorAll('li').forEach(elm => elm.classList.remove('selected'));
-            li.classList.add('selected');
-        });
-        ui.changesList.appendChild(li);
-    });
-
-    refreshDmnViewHighlight();
-}
-
-function getDiffClass(type) {
-    return ({
-        added: 'diff-added',
-        removed: 'diff-removed',
-        modified: 'diff-changed'
-    }[type] || 'diff-changed');
-}
-
-function refreshDmnViewHighlight(activeView) {
-    if (viewers.type !== 'dmn') return;
-    if (!activeView) activeView = viewers.right.getActiveView && viewers.right.getActiveView();
-    if (!activeView) return;
-
-    const diff = state.currentDiff;
-    const show = state.showDiff;
-
-    const oldCanvasRoot = document.getElementById('canvas-left');
-    const newCanvasRoot = document.getElementById('canvas-right');
-
-    [newCanvasRoot, oldCanvasRoot].forEach(root => {
-        if (!root) return;
-        root.querySelectorAll('tr, td, th').forEach(el => {
-            el.classList.remove('diff-added', 'diff-removed', 'diff-changed');
-        });
-    });
-
-    if (activeView.type === 'decisionTable') {
-        if (!show) return;
-        const elementId = activeView.id;
-        const changes = diff?.[elementId]?.changes;
-
-        if (changes) {
-            const getElement = (root, elementId) =>
-                root?.querySelector(`[data-element-id="${elementId}"], [data-col-id="${elementId}"]`);
-
-            const highlightElement = (root, elementId, className, includeRuleRow = false) => {
-                const element = getElement(root, elementId);
-                if (!element) return;
-
-                element.classList.add(className);
-
-                if (includeRuleRow && element.classList.contains('rule-index')) {
-                    element.closest('tr')?.classList.add(className);
-                }
-            };
-
-            const apply = (change, type) => {
-                const id = change.location?.id;
-                if (!id) return;
-
-                const className = getDiffClass(type);
-                if (type === 'removed') {
-                    highlightElement(oldCanvasRoot, id, className, true);
-                    return;
-                }
-                if (type === 'added') {
-                    highlightElement(newCanvasRoot, id, className, true);
-                    return;
-                }
-                highlightElement(newCanvasRoot, id, className);
-                highlightElement(oldCanvasRoot, id, className);
-            };
-
-            changes.added?.forEach(c => apply(c, 'added'));
-            changes.modified?.forEach(c => apply(c, 'modified'));
-            changes.removed?.forEach(c => apply(c, 'removed'));
-        }
-    } else if (activeView.type === 'drd') {
-        function getService(viewer, name) {
-            try {
-                const av = viewer.getActiveViewer && viewer.getActiveViewer();
-                return av && av.get ? av.get(name) : null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        const canvasLeft = getService(viewers.left, 'canvas');
-        const canvasRight = getService(viewers.right, 'canvas');
-        const registryLeft = getService(viewers.left, 'elementRegistry');
-        const registryRight = getService(viewers.right, 'elementRegistry');
-
-        if (show && canvasLeft && canvasRight) {
-            Object.entries(diff || {}).forEach(([id, change]) => {
-                const className = getDiffClass(change.changeType);
-                if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, className);
-                if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, className);
-            });
-        }
-    }
-}
-
-function detectDocType(xml, filePath) {
-    if (filePath && filePath.toLowerCase().endsWith('.dmn')) return 'dmn';
-    const x = (xml || '').toLowerCase();
-    if (x.includes('xmlns="https://www.omg.org/spec/dmn') || x.includes('<dmn:')) return 'dmn';
-    return 'bpmn';
 }
