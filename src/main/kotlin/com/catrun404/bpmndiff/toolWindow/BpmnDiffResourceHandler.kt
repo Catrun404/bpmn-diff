@@ -26,7 +26,8 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
 
     override fun processRequest(request: CefRequest, callback: CefCallback): Boolean {
         currentUrl = request.url
-        val path = currentUrl.removePrefix(BPMN_DIFF_SERVICE_URL)
+        val urlWithoutQuery = currentUrl.substringBefore("?")
+        val path = urlWithoutQuery.removePrefix(BPMN_DIFF_SERVICE_URL)
 
         if (path.startsWith("api/")) {
             val gitService = BpmnDiffGitService.getInstance(project)
@@ -35,7 +36,7 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
                 inputStream = ByteArrayInputStream("{\"error\": \"No git repository found\"}".toByteArray())
                 mimeType = APPLICATION_JSON_TYPE
                 callback.Continue()
-                return false
+                return true
             }
             handleApiRequest(path, callback, repository)
             return true

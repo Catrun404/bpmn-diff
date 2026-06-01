@@ -470,7 +470,7 @@ class BpmnDiffToolWindow(
     ) : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
             val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
-                .withFileFilter { it.extension == "bpmn" || it.extension == "xml" }
+                .withFileFilter { it.extension == "bpmn" || it.extension == "xml" || it.extension == "dmn" }
 
             FileChooser.chooseFile(descriptor, project, null) { file ->
                 val content = file.contentsToByteArray()
