@@ -16,7 +16,7 @@ class DmnDiffJsTest {
             return
         }
 
-        val jsCode = javaClass.getResource("/www/dmn-diff.js")!!.readText()
+        val jsCode = javaClass.getResource("/docker/dmn-diff.js")!!.readText()
         // Strip 'export ' to make it a regular function for the script engine
         val runnableJs = jsCode.replace("export function", "function")
         engine.eval(runnableJs)
@@ -60,7 +60,7 @@ class DmnDiffJsTest {
         val engine = engineManager.getEngineByName("JavaScript") ?: engineManager.getEngineByName("Graal.js")
         if (engine == null) return
 
-        val jsCode = javaClass.getResource("/www/dmn-diff.js")!!.readText()
+        val jsCode = javaClass.getResource("/docker/dmn-diff.js")!!.readText()
         val runnableJs = jsCode.replace("export function", "function")
         engine.eval(runnableJs)
         val invocable = engine as Invocable

@@ -42,7 +42,12 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
         }
 
         val resourcePath = "/www/$path"
-        val stream = javaClass.getResourceAsStream(resourcePath)
+        val stream = try {
+            javaClass.getResourceAsStream(resourcePath)
+        } catch (_: Exception) {
+            return false
+        }
+
         if (stream != null) {
             inputStream = stream
             mimeType = URLConnection.guessContentTypeFromName(path) ?: when {

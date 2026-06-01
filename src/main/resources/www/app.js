@@ -4,7 +4,7 @@ import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.2.0";
 
 import DmnViewer from "https://esm.sh/dmn-js@17.8.0/lib/NavigatedViewer";
 import {DmnModdle} from "https://esm.sh/dmn-moddle@12.0.1";
-import {dmnDiff} from "./dmn-diff.js";
+import {dmnDiff, highlightChanges, syncViews} from "./dmn-diff.js";
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
@@ -101,6 +101,14 @@ function ensureViewers(type) {
         viewers.moddle = new BpmnModdle();
     }
     viewers.type = type;
+    if (type === 'dmn') {
+        syncViews(viewers.left, viewers.right);
+        viewers.right.on('views.changed', () => {
+            if (state.currentDiff && state.showDiff) {
+                renderDiff(state.currentDiff, state.showDiff);
+            }
+        });
+    }
     syncViewers();
 }
 
@@ -314,21 +322,58 @@ function renderDiff(diff, show) {
         canvasLeft = viewers.left.get('canvas');
         canvasRight = viewers.right.get('canvas');
     } catch (e) {
-        ui.changesList.innerHTML = '<li>Diff highlighting only supported in diagram view.</li>';
-        return;
+        // If we can't get these, we might be in a non-diagram view (e.g. DMN Decision Table)
+        // We still want to continue if it's DMN
+        if (viewers.type !== 'dmn') {
+            ui.changesList.innerHTML = '<li>Diff highlighting only supported in diagram view.</li>';
+            return;
+        }
     }
 
     ui.changesList.innerHTML = '';
 
-    [canvasLeft, canvasRight].forEach(canvas => {
-        const registry = canvas === canvasLeft ? registryLeft : registryRight;
-        registry.getAll().forEach(el => {
-            canvas.removeMarker(el.id, 'diff-added');
-            canvas.removeMarker(el.id, 'diff-removed');
-            canvas.removeMarker(el.id, 'diff-changed');
-            canvas.removeMarker(el.id, 'diff-layout-changed');
+    if (canvasLeft && canvasRight) {
+        [canvasLeft, canvasRight].forEach(canvas => {
+            const registry = canvas === canvasLeft ? registryLeft : registryRight;
+            registry.getAll().forEach(el => {
+                canvas.removeMarker(el.id, 'diff-added');
+                canvas.removeMarker(el.id, 'diff-removed');
+                canvas.removeMarker(el.id, 'diff-changed');
+                canvas.removeMarker(el.id, 'diff-layout-changed');
+            });
         });
-    });
+    }
+
+    if (viewers.type === 'dmn') {
+        if (show) {
+            highlightChanges(viewers.left, viewers.right, diff);
+        }
+
+        Object.entries(diff).forEach(([id, elementDiff]) => {
+            const action = elementDiff.changeType === 'modified' ? 'changed' : elementDiff.changeType;
+            
+            let element = null;
+            if (registryRight) {
+                element = registryRight.get(id) || (registryLeft ? registryLeft.get(id) : null);
+            }
+            
+            if (!element) {
+                const definitions = viewers.right.getDefinitions() || viewers.left.getDefinitions();
+                element = definitions.drgElement?.find(e => e.id === id);
+            }
+
+            const businessObject = element?.businessObject || element;
+            const type = (businessObject?.$type || '').replace(/.*:/, '') || 'Element';
+            const label = businessObject?.name || id;
+
+            addChange(id, type, action, businessObject || {id});
+        });
+
+        if (ui.changesList.innerHTML === '') {
+            ui.changesList.innerHTML = '<li>No changes detected</li>';
+        }
+        return;
+    }
 
     const added = diff._added || diff.added || {};
     const removed = diff._removed || diff.removed || {};
@@ -349,18 +394,18 @@ function renderDiff(diff, show) {
             ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
             li.classList.add('selected');
             try {
-                const elLeft = registryLeft.get(id);
-                const elRight = registryRight.get(id);
+                const elLeft = registryLeft ? registryLeft.get(id) : null;
+                const elRight = registryRight ? registryRight.get(id) : null;
                 if (elLeft) canvasLeft.scrollToElement(elLeft);
                 if (elRight) canvasRight.scrollToElement(elRight);
             } catch (e) {}
         };
         ui.changesList.appendChild(li);
 
-        if (show) {
+        if (show && canvasLeft && canvasRight) {
             const marker = `diff-${action === 'layoutChanged' ? 'layout-changed' : action}`;
-            if (registryLeft.get(id)) canvasLeft.addMarker(id, marker);
-            if (registryRight.get(id)) canvasRight.addMarker(id, marker);
+            if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, marker);
+            if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, marker);
         }
     }
 
