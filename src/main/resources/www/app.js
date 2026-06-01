@@ -289,7 +289,9 @@ async function doDiff() {
         const [leftDefs, rightDefs] = await Promise.all([
             viewers.moddle.fromXML(state.leftXml).then(r => r.rootElement),
             viewers.moddle.fromXML(state.rightXml).then(r => r.rootElement),
-        ]);
+        ]).catch(err => {
+            throw new Error(`Failed to parse XML: ${err.message}`);
+        });
 
         state.currentDiff = diffFn(leftDefs, rightDefs) || {};
 
@@ -299,7 +301,9 @@ async function doDiff() {
         await Promise.all([
             viewers.left.importXML(state.leftXml),
             viewers.right.importXML(state.rightXml)
-        ]);
+        ]).catch(err => {
+            throw new Error(`Failed to import diagram: ${err.message}`);
+        });
 
         try {
             viewers.left.get('canvas').zoom('fit-viewport');
@@ -309,6 +313,9 @@ async function doDiff() {
         renderDiff(state.currentDiff, state.showDiff);
     } catch (err) {
         console.error(err);
+        ui.noDiagramAlert.style.display = 'block';
+        ui.noDiagramAlert.innerHTML = `Error: ${err.message}`;
+        ui.diffItemsContainer.style.display = 'none';
     } finally {
         state.isDiffing = false;
     }
@@ -356,7 +363,7 @@ function renderDiff(diff, show) {
             if (registryRight) {
                 element = registryRight.get(id) || (registryLeft ? registryLeft.get(id) : null);
             }
-            
+
             if (!element) {
                 const definitions = viewers.right.getDefinitions() || viewers.left.getDefinitions();
                 element = definitions.drgElement?.find(e => e.id === id);
