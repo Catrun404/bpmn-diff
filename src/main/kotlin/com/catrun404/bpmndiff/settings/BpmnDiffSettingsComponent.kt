@@ -24,7 +24,7 @@ class BpmnDiffSettingsComponent {
     }
 
     val preferredFocusedComponent: JComponent
-        get() = defaultLeftBranchText
+        field = defaultLeftBranchText
 
     var defaultLeftBranch: String
         get() = defaultLeftBranchText.text
