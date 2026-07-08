@@ -11,10 +11,23 @@ const _groupChanges = (diff, oldDefinitions, newDefinitions) => {
       const { path } = location;
 
       if (_isRootLevelChange(path)) {
-        const drdId = newDefinitions.id;
-        _ensureNestedProperty(grouped, drdId, "changes", changeType).push(
-          change
-        );
+          const definitionsChangeId = _getDefinitionsChangeId(path);
+          if (!definitionsChangeId) {
+              return;
+          }
+          _ensureNestedProperty(
+              grouped,
+              definitionsChangeId,
+              "changes",
+              "modified"
+          ).push(change);
+
+          grouped[definitionsChangeId].changeType = "modified";
+          grouped[definitionsChangeId].displayId = _getDefinitionsDisplayId(
+              path,
+              oldDefinitions,
+              newDefinitions
+          );
       } else {
         const drdElementType = _getDrdElementType(path);
         const drdElementPath = _extractPathUntilTarget(path, drdElementType);
@@ -47,6 +60,23 @@ const _groupChanges = (diff, oldDefinitions, newDefinitions) => {
   });
 
   return grouped;
+};
+
+const _getDefinitionsChangeId = (path) => {
+  return ({
+    id: "dmn-definitions-id",
+    name: "dmn-definitions-name",
+  })[path];
+};
+
+const _getDefinitionsDisplayId = (path, oldDefinitions, newDefinitions) => {
+    if (path === "id") {
+        return `${oldDefinitions.id} → ${newDefinitions.id}`;
+    }
+    if (path === "name") {
+        return `${oldDefinitions.name} → ${newDefinitions.name}`;
+    }
+    return newDefinitions.id || oldDefinitions.id;
 };
 
 const _getDrdElementType = (path) => {

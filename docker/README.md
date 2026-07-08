@@ -35,4 +35,4 @@ docker compose up
 ```
 
 Then open the URL shown in the terminal ([http://localhost:5173](http://localhost:5173)).
-Any changes you make to `app.js` or `styles.css` in docker directory will be reflected immediately.
+Any changes you make to `*.js` or `*.css` in docker directory will be reflected immediately.

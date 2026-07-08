@@ -33,7 +33,6 @@ export async function computeDmnDiff(moddle, leftXml, rightXml) {
     return await dmnDiffer.compute(leftResult.rootElement, rightResult.rootElement) || {};
 }
 
-
 export function renderDmnDiff(viewers, ui, state) {
     const registryLeft = getService(viewers.left, 'elementRegistry', 'dmn');
     const registryRight = getService(viewers.right, 'elementRegistry', 'dmn');
@@ -70,14 +69,18 @@ export function renderDmnDiff(viewers, ui, state) {
         });
     }
 
-    items.forEach(({id, action}) => {
+    items.forEach(({id, action, change}) => {
         if (!action) {
             return;
         }
         let type = 'Element';
         let name = '';
         const el = (registryRight && registryRight.get(id)) || (registryLeft && registryLeft.get(id));
-        if (el) {
+        const isDefinitionsChange = DEFINITIONS_DIFF_ELEMENT_IDS.has(id);
+        if (isDefinitionsChange) {
+            type = 'Definitions';
+            name = id === 'dmn-definitions-id' ? 'id' : 'name';
+        } else if (el) {
             const bo = (el.businessObject || el);
             const rawType = bo.$type || '';
             type = rawType.replace(/^dmn:/, '') || type;
@@ -86,7 +89,8 @@ export function renderDmnDiff(viewers, ui, state) {
         const li = document.createElement('li');
         li.className = action;
         li.dataset.id = id;
-        const labelText = name ? `${name} (id=${id})` : `id=${id}`;
+        const displayId = change.displayId || id;
+        const labelText = name ? `${name} (id=${displayId})` : `id=${displayId}`;
         li.innerHTML = `
             <span class="diff-type">${action}</span>
             <span class="diff-label">${type}: ${labelText}</span>
@@ -104,6 +108,8 @@ export function renderDmnDiff(viewers, ui, state) {
 
     refreshDmnViewHighlight(null, viewers, state);
 }
+
+const DEFINITIONS_DIFF_ELEMENT_IDS = new Set(['dmn-definitions-id', 'dmn-definitions-name']);
 
 export function getDiffClass(type) {
     return ({
@@ -146,7 +152,7 @@ export function refreshDmnViewHighlight(activeView, viewers, state) {
 
     [newCanvasRoot, oldCanvasRoot].forEach(root => {
         if (!root) return;
-        root.querySelectorAll('tr, td, th').forEach(el => {
+        root.querySelectorAll('tr, td, th, .dmn-definitions-id, .dmn-definitions-name').forEach(el => {
             el.classList.remove('diff-added', 'diff-removed', 'diff-changed');
         });
         root.classList.remove('can-grab');
@@ -211,6 +217,11 @@ export function refreshDmnViewHighlight(activeView, viewers, state) {
         if (show && canvasLeft && canvasRight) {
             Object.entries(diff || {}).forEach(([id, change]) => {
                 const className = getDiffClass(change.changeType);
+                if (DEFINITIONS_DIFF_ELEMENT_IDS.has(id)) {
+                    oldCanvasRoot?.querySelector(`.${id}`)?.classList.add(className);
+                    newCanvasRoot?.querySelector(`.${id}`)?.classList.add(className);
+                    return;
+                }
                 if (registryLeft && registryLeft.get(id)) canvasLeft.addMarker(id, className);
                 if (registryRight && registryRight.get(id)) canvasRight.addMarker(id, className);
             });

@@ -265,6 +265,21 @@ tr.diff-changed td, tr.diff-changed th, td.diff-changed, th.diff-changed {
     background-color: #fef5d1 !important;
 }
 
+.dmn-definitions-id.diff-added,
+.dmn-definitions-name.diff-added {
+    background-color: #d4f7e1 !important;
+}
+
+.dmn-definitions-id.diff-removed,
+.dmn-definitions-name.diff-removed {
+    background-color: #fce4e2 !important;
+}
+
+.dmn-definitions-id.diff-changed,
+.dmn-definitions-name.diff-changed {
+    background-color: #fef5d1 !important;
+}
+
 /* DMN Decision Table Improvements */
 .canvas .dmn-js-parent {
     width: 100%;

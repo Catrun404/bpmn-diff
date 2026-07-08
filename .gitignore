@@ -9,4 +9,6 @@
 /docker/dmn-js-differ/
 /docker/node_modules
 /docker/styles.css
+/docker/bpmn-diff.js
+/docker/utils.js
 build
