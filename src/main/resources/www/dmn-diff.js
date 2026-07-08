@@ -1,7 +1,7 @@
 import DmnViewer from "https://esm.sh/dmn-js@17.8.0/lib/NavigatedViewer";
 import {DmnModdle} from "https://esm.sh/dmn-moddle@12.0.1";
 import DmnDiffer from "./dmn-js-differ/index.js";
-import {getService} from "./utils.js";
+import {getService, syncScroll} from "./utils.js";
 
 export const EMPTY_DMN = `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
@@ -113,8 +113,28 @@ export function getDiffClass(type) {
     }[type] || 'diff-changed');
 }
 
+let tableScrollCleanup = null;
+
+function teardownTableScrollSync() {
+    if (tableScrollCleanup) {
+        tableScrollCleanup();
+        tableScrollCleanup = null;
+    }
+}
+
+function setupTableScrollSync() {
+    teardownTableScrollSync();
+    const leftScroll = document.querySelector('#canvas-left .tjs-table-container');
+    const rightScroll = document.querySelector('#canvas-right .tjs-table-container');
+    if (!leftScroll || !rightScroll) return;
+    tableScrollCleanup = syncScroll([leftScroll, rightScroll]);
+}
+
 export function refreshDmnViewHighlight(activeView, viewers, state) {
-    if (viewers.type !== 'dmn') return;
+    if (viewers.type !== 'dmn') {
+        teardownTableScrollSync();
+        return;
+    }
     if (!activeView) activeView = viewers.right.getActiveView && viewers.right.getActiveView();
     if (!activeView) return;
 
@@ -129,50 +149,60 @@ export function refreshDmnViewHighlight(activeView, viewers, state) {
         root.querySelectorAll('tr, td, th').forEach(el => {
             el.classList.remove('diff-added', 'diff-removed', 'diff-changed');
         });
+        root.classList.remove('can-grab');
     });
 
     if (activeView.type === 'decisionTable') {
-        if (!show) return;
-        const elementId = activeView.id;
-        const changes = diff?.[elementId]?.changes;
+        [newCanvasRoot, oldCanvasRoot].forEach(root => root && root.classList.add('can-grab'));
 
-        if (changes) {
-            const getElement = (root, elementId) =>
-                root?.querySelector(`[data-element-id="${elementId}"], [data-col-id="${elementId}"]`);
+        setTimeout(() => {
+            setupTableScrollSync();
 
-            const highlightElement = (root, elementId, className, includeRuleRow = false) => {
-                const element = getElement(root, elementId);
-                if (!element) return;
+            if (!show) return;
 
-                element.classList.add(className);
+            const elementId = activeView.id;
+            const changes = diff?.[elementId]?.changes;
 
-                if (includeRuleRow && element.classList.contains('rule-index')) {
-                    element.closest('tr')?.classList.add(className);
-                }
-            };
+            if (changes) {
+                const getElement = (root, elementId) =>
+                    root?.querySelector(`[data-element-id="${elementId}"], [data-col-id="${elementId}"]`);
 
-            const apply = (change, type) => {
-                const id = change.location?.id;
-                if (!id) return;
+                const highlightElement = (root, elementId, className, includeRuleRow = false) => {
+                    const element = getElement(root, elementId);
+                    if (!element) return;
 
-                const className = getDiffClass(type);
-                if (type === 'removed') {
-                    highlightElement(oldCanvasRoot, id, className, true);
-                    return;
-                }
-                if (type === 'added') {
-                    highlightElement(newCanvasRoot, id, className, true);
-                    return;
-                }
-                highlightElement(newCanvasRoot, id, className);
-                highlightElement(oldCanvasRoot, id, className);
-            };
+                    element.classList.add(className);
 
-            changes.added?.forEach(c => apply(c, 'added'));
-            changes.modified?.forEach(c => apply(c, 'modified'));
-            changes.removed?.forEach(c => apply(c, 'removed'));
-        }
+                    if (includeRuleRow && element.classList.contains('rule-index')) {
+                        element.closest('tr')?.classList.add(className);
+                    }
+                };
+
+                const apply = (change, type) => {
+                    const id = change.location?.id;
+                    if (!id) return;
+
+                    const className = getDiffClass(type);
+                    if (type === 'removed') {
+                        highlightElement(oldCanvasRoot, id, className, true);
+                        return;
+                    }
+                    if (type === 'added') {
+                        highlightElement(newCanvasRoot, id, className, true);
+                        return;
+                    }
+                    highlightElement(newCanvasRoot, id, className);
+                    highlightElement(oldCanvasRoot, id, className);
+                };
+
+                changes.added?.forEach(c => apply(c, 'added'));
+                changes.modified?.forEach(c => apply(c, 'modified'));
+                changes.removed?.forEach(c => apply(c, 'removed'));
+            }
+        }, 50);
     } else if (activeView.type === 'drd') {
+        teardownTableScrollSync();
+
         const canvasLeft = getService(viewers.left, 'canvas', 'dmn');
         const canvasRight = getService(viewers.right, 'canvas', 'dmn');
         const registryLeft = getService(viewers.left, 'elementRegistry', 'dmn');

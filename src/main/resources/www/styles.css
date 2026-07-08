@@ -78,6 +78,14 @@ body, html {
     overflow: hidden;
 }
 
+.canvas.can-grab {
+    cursor: grab;
+}
+
+.canvas.grabbing {
+    cursor: grabbing !important;
+}
+
 #canvas-left {
     border-right: 1px solid var(--border-color);
 }
@@ -255,4 +263,38 @@ tr.diff-removed td, tr.diff-removed th, td.diff-removed, th.diff-removed {
 
 tr.diff-changed td, tr.diff-changed th, td.diff-changed, th.diff-changed {
     background-color: #fef5d1 !important;
+}
+
+/* DMN Decision Table Improvements */
+.canvas .dmn-js-parent {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.dmn-decision-table-container {
+    background-color: white;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.tjs-table {
+    min-width: 100%;
+}
+
+.tjs-table th.annotations,
+.tjs-table td.description {
+    min-width: 150px;
+    border-left: 1px solid var(--border-color) !important;
+}
+
+.tjs-table td.description {
+    white-space: normal; /* Allow annotations to wrap */
+}
+
+/* Ensure hit policy container is visible and styled */
+.hit-policy-container {
+    z-index: 10;
 }

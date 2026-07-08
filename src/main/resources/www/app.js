@@ -1,18 +1,21 @@
 import {computeBpmnDiff, createBpmnModdle, createBpmnViewer, EMPTY_BPMN, renderBpmnDiff} from "./bpmn-diff.js";
 import {computeDmnDiff, createDmnModdle, createDmnViewer, EMPTY_DMN, refreshDmnViewHighlight, renderDmnDiff} from "./dmn-diff.js";
-import {detectDocType, getService} from "./utils.js";
+import {detectDocType, getService, setupDragScroll} from "./utils.js";
 
 
-const ui = {
+export const ui = {
     changesList: document.getElementById('changes-list'),
     noDiagramAlert: document.getElementById('no-diagram-alert'),
     diffItemsContainer: document.getElementById('diff-items-container'),
 
     canvasLeft: '#canvas-left',
-    canvasRight: '#canvas-right'
+    canvasRight: '#canvas-right',
+
+    fileLeft: document.getElementById('file-left'),
+    fileRight: document.getElementById('file-right')
 };
 
-const state = {
+export const state = {
     mode: 'branch', // 'branch' | 'commit' | 'manual'
     leftXml: null,
     rightXml: null,
@@ -62,6 +65,10 @@ function ensureViewers(type) {
     viewers.type = type;
     viewers.syncAttached = false;
 
+    // Remove can-grab by default, dmn-diff logic will add it if needed
+    document.querySelector(ui.canvasLeft).classList.remove('can-grab');
+    document.querySelector(ui.canvasRight).classList.remove('can-grab');
+
     if (type === 'dmn') {
         viewers.left = createDmnViewer(ui.canvasLeft);
         viewers.right = createDmnViewer(ui.canvasRight);
@@ -75,9 +82,12 @@ function ensureViewers(type) {
     attachSyncHandlers();
 }
 
+setupDragScroll(ui.canvasLeft);
+setupDragScroll(ui.canvasRight);
+
 ensureViewers('bpmn');
 
-async function switchMode(newMode) {
+export async function switchMode(newMode) {
     state.mode = newMode;
     const isGit = newMode !== 'manual';
 
@@ -217,18 +227,88 @@ function attachSyncHandlers() {
     }
 
     if (viewers.type === 'dmn') {
-        viewers.right.on('views.changed', (event) => {
-            if (isSyncing) return;
-            isSyncing = true;
-            try {
-                const viewToOpen = viewers.left.getViews().find(v => v.id === event.activeView.id);
-                if (viewToOpen) viewers.left.open(viewToOpen);
-            } catch (e) {
-            }
-            isSyncing = false;
+        let drdSyncCleanup = null;
 
-            refreshDmnViewHighlight(event.activeView, viewers, state);
-        });
+        const teardownDrdSync = () => {
+            if (drdSyncCleanup) {
+                drdSyncCleanup();
+                drdSyncCleanup = null;
+            }
+        };
+
+        const attachDrdSync = () => {
+            teardownDrdSync();
+
+            const leftViewer = viewers.left.getActiveViewer && viewers.left.getActiveViewer();
+            const rightViewer = viewers.right.getActiveViewer && viewers.right.getActiveViewer();
+            if (!leftViewer || !rightViewer) return;
+
+            let leftBus, rightBus, leftCanvas, rightCanvas;
+            try {
+                leftBus = leftViewer.get('eventBus');
+                rightBus = rightViewer.get('eventBus');
+                leftCanvas = leftViewer.get('canvas');
+                rightCanvas = rightViewer.get('canvas');
+            } catch (e) {
+                return;
+            }
+            if (!leftBus || !rightBus || !leftCanvas || !rightCanvas) return;
+
+            let busy = false;
+            const syncViewbox = (source, target) => {
+                if (busy) return;
+                busy = true;
+                try {
+                    target.viewbox(source.viewbox());
+                } catch (e) {
+                }
+                busy = false;
+            };
+
+            const onLeft = () => syncViewbox(leftCanvas, rightCanvas);
+            const onRight = () => syncViewbox(rightCanvas, leftCanvas);
+
+            leftBus.on('canvas.viewbox.changed', onLeft);
+            rightBus.on('canvas.viewbox.changed', onRight);
+
+            drdSyncCleanup = () => {
+                try {
+                    leftBus.off('canvas.viewbox.changed', onLeft);
+                } catch (e) {
+                }
+                try {
+                    rightBus.off('canvas.viewbox.changed', onRight);
+                } catch (e) {
+                }
+            };
+        };
+
+        const syncView = (targetViewer) => (event) => {
+            const active = event.activeView;
+            if (!active) return;
+
+            const targetActive = targetViewer.getActiveView && targetViewer.getActiveView();
+            if (!targetActive || targetActive.id !== active.id) {
+                const viewToOpen = (targetViewer.getViews() || []).find(v => v.id === active.id);
+                if (viewToOpen) {
+                    try {
+                        targetViewer.open(viewToOpen);
+                    } catch (e) {
+                    }
+                }
+            }
+
+            if (active.type === 'drd') {
+                attachDrdSync();
+            } else {
+                teardownDrdSync();
+            }
+
+            refreshDmnViewHighlight(active, viewers, state);
+        };
+
+        viewers.right.on('views.changed', syncView(viewers.left));
+        viewers.left.on('views.changed', syncView(viewers.right));
     }
 
     function handleElementClick(event) {
