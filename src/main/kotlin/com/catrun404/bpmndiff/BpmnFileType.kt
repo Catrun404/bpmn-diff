@@ -9,6 +9,8 @@ object BpmnFileType : LanguageFileType(Language.findLanguageByID("XML") ?: Langu
 
     override fun getName(): String = "BPMN"
 
+    override fun getDisplayName(): String = "BPMN"
+
     override fun getDescription(): String = "BPMN 2.0 Process definition"
 
     override fun getDefaultExtension(): String = "bpmn"

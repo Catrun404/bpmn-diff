@@ -50,7 +50,7 @@ class BpmnDiffGitService(private val project: Project) {
         return emptyList()
     }
 
-    fun getChangedBpmnFiles(repository: GitRepository, leftRef: String, rightRef: String): List<String> {
+    fun getChangedFiles(repository: GitRepository, leftRef: String, rightRef: String): List<String> {
         val handler = if (leftRef == rightRef) {
             val h = GitLineHandler(project, repository.root, GitCommand.LS_TREE)
             h.addParameters("-r", rightRef, "--name-only")
@@ -62,7 +62,7 @@ class BpmnDiffGitService(private val project: Project) {
         }
         val result = Git.getInstance().runCommand(handler)
         return if (result.success()) {
-            result.output.filter { it.endsWith(".bpmn") }.distinct()
+            result.output.filter { it.endsWith(".bpmn") || it.endsWith(".dmn") }.distinct()
         } else {
             emptyList()
         }

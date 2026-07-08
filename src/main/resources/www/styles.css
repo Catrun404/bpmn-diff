@@ -68,11 +68,22 @@ body, html {
     flex: 1;
     display: flex;
     position: relative;
+    min-width: 0;
 }
 
 .canvas {
     flex: 1;
     height: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.canvas.can-grab {
+    cursor: grab;
+}
+
+.canvas.grabbing {
+    cursor: grabbing !important;
 }
 
 #canvas-left {
@@ -99,6 +110,7 @@ body, html {
 .diff-items {
     position: relative;
     width: 300px;
+    flex-shrink: 0;
     background: var(--bg-color);
     border-left: 1px solid var(--border-color);
     display: flex;
@@ -238,4 +250,66 @@ footer a:hover {
 .djs-connection.diff-changed .djs-visual path,
 .djs-connection.diff-layout-changed .djs-visual path {
     fill: none !important;
+}
+
+/* DMN Decision Table highlights */
+tr.diff-added td, tr.diff-added th, td.diff-added, th.diff-added {
+    background-color: #d4f7e1 !important;
+}
+
+tr.diff-removed td, tr.diff-removed th, td.diff-removed, th.diff-removed {
+    background-color: #fce4e2 !important;
+}
+
+tr.diff-changed td, tr.diff-changed th, td.diff-changed, th.diff-changed {
+    background-color: #fef5d1 !important;
+}
+
+.dmn-definitions-id.diff-added,
+.dmn-definitions-name.diff-added {
+    background-color: #d4f7e1 !important;
+}
+
+.dmn-definitions-id.diff-removed,
+.dmn-definitions-name.diff-removed {
+    background-color: #fce4e2 !important;
+}
+
+.dmn-definitions-id.diff-changed,
+.dmn-definitions-name.diff-changed {
+    background-color: #fef5d1 !important;
+}
+
+/* DMN Decision Table Improvements */
+.canvas .dmn-js-parent {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.dmn-decision-table-container {
+    background-color: white;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.tjs-table {
+    min-width: 100%;
+}
+
+.tjs-table th.annotations,
+.tjs-table td.description {
+    min-width: 150px;
+    border-left: 1px solid var(--border-color) !important;
+}
+
+.tjs-table td.description {
+    white-space: normal; /* Allow annotations to wrap */
+}
+
+/* Ensure hit policy container is visible and styled */
+.hit-policy-container {
+    z-index: 10;
 }

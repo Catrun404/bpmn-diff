@@ -127,6 +127,12 @@ kover {
 }
 
 tasks {
+    processResources {
+        exclude("**/*.test.js")
+        exclude("**/test.html")
+        exclude("**/node_modules/**")
+    }
+
     wrapper {
         gradleVersion = providers.gradleProperty("gradleVersion").get()
     }

@@ -212,7 +212,7 @@ class BpmnDiffToolWindow(
         ProgressManager.getInstance()
             .run(object : Task.Backgroundable(project, BpmnDiffBundle.message("progress.updating.files"), false) {
                 override fun run(indicator: ProgressIndicator) {
-                    val foundFiles = gitService.getChangedBpmnFiles(repository, leftRef, rightRef)
+                    val foundFiles = gitService.getChangedFiles(repository, leftRef, rightRef)
                     ApplicationManager.getApplication().invokeLater {
                         if (project.isDisposed) return@invokeLater
                         files = foundFiles
@@ -470,7 +470,7 @@ class BpmnDiffToolWindow(
     ) : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
             val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
-                .withFileFilter { it.extension == "bpmn" || it.extension == "xml" }
+                .withFileFilter { it.extension == "bpmn" || it.extension == "xml" || it.extension == "dmn" }
 
             FileChooser.chooseFile(descriptor, project, null) { file ->
                 val content = file.contentsToByteArray()

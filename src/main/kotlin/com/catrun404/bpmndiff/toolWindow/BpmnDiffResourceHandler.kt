@@ -26,7 +26,8 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
 
     override fun processRequest(request: CefRequest, callback: CefCallback): Boolean {
         currentUrl = request.url
-        val path = currentUrl.removePrefix(BPMN_DIFF_SERVICE_URL)
+        val urlWithoutQuery = currentUrl.substringBefore("?")
+        val path = urlWithoutQuery.removePrefix(BPMN_DIFF_SERVICE_URL)
 
         if (path.startsWith("api/")) {
             val gitService = BpmnDiffGitService.getInstance(project)
@@ -35,21 +36,27 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
                 inputStream = ByteArrayInputStream("{\"error\": \"No git repository found\"}".toByteArray())
                 mimeType = APPLICATION_JSON_TYPE
                 callback.Continue()
-                return false
+                return true
             }
             handleApiRequest(path, callback, repository)
             return true
         }
 
         val resourcePath = "/www/$path"
-        val stream = javaClass.getResourceAsStream(resourcePath)
+        val stream = try {
+            javaClass.getResourceAsStream(resourcePath)
+        } catch (_: Exception) {
+            return false
+        }
+
         if (stream != null) {
             inputStream = stream
             mimeType = URLConnection.guessContentTypeFromName(path) ?: when {
                 path.endsWith(".js") -> "application/javascript"
                 path.endsWith(".css") -> "text/css"
-                path.endsWith(".bpmn") -> "application/xml"
-                else -> TEXT_PLAIN_TYPE
+                path.endsWith(".html") -> "text/html"
+                path.endsWith(".bpmn") || path.endsWith(".dmn") -> "application/xml"
+                else -> URLConnection.guessContentTypeFromName(path) ?: TEXT_PLAIN_TYPE
             }
             callback.Continue()
             return true
@@ -102,13 +109,17 @@ class BpmnDiffResourceHandler(private val project: Project) : CefResourceHandler
         bytesRead: IntRef,
         callback: CefCallback
     ): Boolean {
-        val available = inputStream?.available() ?: 0
-        if (available <= 0) {
-            inputStream?.close()
-            return false
+
+        val stream = inputStream ?: return false
+
+        val read = stream.read(dataOut, 0, bytesToRead)
+        if (read > 0) {
+            bytesRead.set(read)
+            return true
         }
-        val read = inputStream?.read(dataOut, 0, available.coerceAtMost(bytesToRead)) ?: 0
-        bytesRead.set(read)
-        return true
+
+        inputStream?.close()
+        inputStream = null
+        return false
     }
 }

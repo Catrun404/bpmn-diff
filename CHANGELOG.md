@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Support for DRD
+- Support for DMN
+
 ## [1.1.2] - 2026-06-01
 
 ### Changed

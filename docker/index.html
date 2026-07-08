@@ -19,8 +19,32 @@
     <link rel="stylesheet" href="https://esm.sh/dmn-js@17.8.0/dist/assets/dmn-font/css/dmn.css"
           integrity="sha384-/pILLz6fKXzyCD1KxKRGciD8ui2T/Px86d3ntwEMJpxy74BJ6FgmpAKXauD+LgmG" crossorigin="anonymous">
     <link rel="stylesheet" href="./styles.css"/>
+    <script>
+        console.log("index.html: initial script execution");
+        window.onerror = function (msg, url, line, col, error) {
+            var extra = !url ? '' : '\nURL: ' + url + '\nLine: ' + line + ':' + col;
+            console.error("Global error: " + msg + extra);
+            if (error && error.stack) console.error(error.stack);
+            return false;
+        };
+        window.onunhandledrejection = function (event) {
+            console.error("Unhandled Rejection: " + event.reason);
+        };
+        window.addEventListener('load', function () {
+            console.log("index.html: window load event fired");
+        });
+    </script>
 </head>
 <body>
+<header class="header">
+    <div class="logo">BPMN-Diff</div>
+    <div class="controls">
+        <span style="display: inline-block; margin-left: 10px;">
+            <label for="file-left">Left: </label><input type="file" id="file-left" accept=".bpmn,.dmn"/>
+            <label for="file-right">Right: </label><input type="file" id="file-right" accept=".bpmn,.dmn"/>
+        </span>
+    </div>
+</header>
 <div class="main-content">
     <div class="content-wrapper">
         <div class="canvas-container">
@@ -42,6 +66,6 @@
     </div>
 </div>
 
-<script type="module" src="./app.js"></script>
+<script type="module" src="./local-dev.js"></script>
 </body>
 </html>

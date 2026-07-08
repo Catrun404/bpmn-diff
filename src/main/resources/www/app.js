@@ -1,36 +1,27 @@
-import BpmnViewer from "https://esm.sh/bpmn-js@18.10.1/lib/NavigatedViewer";
-import BpmnModdle from "https://esm.sh/bpmn-moddle@9.0.4";
-import {diff as bpmnDiff} from "https://esm.sh/bpmn-js-differ@3.1.0";
+import {computeBpmnDiff, createBpmnModdle, createBpmnViewer, EMPTY_BPMN, renderBpmnDiff} from "./bpmn-diff.js";
+import {computeDmnDiff, createDmnModdle, createDmnViewer, EMPTY_DMN, refreshDmnViewHighlight, renderDmnDiff} from "./dmn-diff.js";
+import {detectDocType, getService, setupDragScroll} from "./utils.js";
 
-const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
-                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
-                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
-                  id="Definitions_1" 
-                  targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="EmptyProcess_0" isExecutable="false" />
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="EmptyProcess_0">
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
 
-const ui = {
+export const ui = {
     changesList: document.getElementById('changes-list'),
     noDiagramAlert: document.getElementById('no-diagram-alert'),
     diffItemsContainer: document.getElementById('diff-items-container'),
 
     canvasLeft: '#canvas-left',
-    canvasRight: '#canvas-right'
+    canvasRight: '#canvas-right',
+
+    fileLeft: document.getElementById('file-left'),
+    fileRight: document.getElementById('file-right')
 };
 
-const state = {
+export const state = {
     mode: 'branch', // 'branch' | 'commit' | 'manual'
     leftXml: null,
     rightXml: null,
     currentDiff: null,
     isDiffing: false,
+    docType: 'bpmn', // 'bpmn' | 'dmn'
 
     gitFile: null,
     gitLeftRef: null,
@@ -48,12 +39,55 @@ const state = {
 };
 
 const viewers = {
-    left: new BpmnViewer({container: ui.canvasLeft}),
-    right: new BpmnViewer({container: ui.canvasRight}),
-    moddle: new BpmnModdle()
+    left: null,
+    right: null,
+    moddle: null,
+    type: null,
+    syncAttached: false
 };
 
-async function switchMode(newMode) {
+function ensureViewers(type) {
+    if (viewers.type === type && viewers.left) return;
+
+    if (viewers.left) {
+        try {
+            viewers.left.destroy();
+        } catch (e) {
+        }
+    }
+    if (viewers.right) {
+        try {
+            viewers.right.destroy();
+        } catch (e) {
+        }
+    }
+
+    viewers.type = type;
+    viewers.syncAttached = false;
+
+    // Remove can-grab by default, dmn-diff logic will add it if needed
+    document.querySelector(ui.canvasLeft).classList.remove('can-grab');
+    document.querySelector(ui.canvasRight).classList.remove('can-grab');
+
+    if (type === 'dmn') {
+        viewers.left = createDmnViewer(ui.canvasLeft);
+        viewers.right = createDmnViewer(ui.canvasRight);
+        viewers.moddle = createDmnModdle();
+    } else {
+        viewers.left = createBpmnViewer(ui.canvasLeft);
+        viewers.right = createBpmnViewer(ui.canvasRight);
+        viewers.moddle = createBpmnModdle();
+    }
+
+    attachSyncHandlers();
+}
+
+setupDragScroll(ui.canvasLeft);
+setupDragScroll(ui.canvasRight);
+
+ensureViewers('bpmn');
+
+export async function switchMode(newMode) {
     state.mode = newMode;
     const isGit = newMode !== 'manual';
 
@@ -67,7 +101,6 @@ async function switchMode(newMode) {
 window.switchModeFromIJ = switchMode;
 
 window.setGitSelection = (leftRef, rightRef, file) => {
-    console.log('Git selection updated from IJ:', {leftRef, rightRef, file});
     state.gitLeftRef = leftRef;
     state.gitRightRef = rightRef;
     state.gitFile = file;
@@ -79,7 +112,6 @@ window.setGitSelection = (leftRef, rightRef, file) => {
 };
 
 window.setManualSelection = (side, base64Content, fileName) => {
-    console.log(`Manual selection updated from IJ: ${side} = ${fileName}`);
     const binaryString = atob(base64Content);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -98,7 +130,6 @@ window.setManualSelection = (side, base64Content, fileName) => {
 };
 
 window.setShowDiff = (show) => {
-    console.log('Show diff updated from IJ:', show);
     state.showDiff = show;
     if (state.currentDiff) {
         renderDiff(state.currentDiff, state.showDiff);
@@ -106,7 +137,6 @@ window.setShowDiff = (show) => {
 };
 
 window.initFromIJ = (mode, leftBranch, rightBranch, file, showDiff) => {
-    console.log('Initializing from IJ:', {mode, leftBranch, rightBranch, file, showDiff});
     state.mode = mode;
     state.gitLeftRef = leftBranch;
     state.gitRightRef = rightBranch;
@@ -156,22 +186,130 @@ function updateTabTitle() {
     }
 }
 
-function syncViewers() {
-    const canvasLeft = viewers.left.get('canvas');
-    const canvasRight = viewers.right.get('canvas');
+function attachSyncHandlers() {
+    if (!viewers.left || !viewers.right || viewers.syncAttached) return;
+
+    let canvasLeft = getService(viewers.left, 'canvas', viewers.type);
+    let canvasRight = getService(viewers.right, 'canvas', viewers.type);
 
     let isSyncing = false;
 
     function sync(source, target) {
-        if (isSyncing) return;
+        if (isSyncing || !source || !target) return;
         isSyncing = true;
-        const viewbox = source.viewbox();
-        target.viewbox(viewbox);
+        try {
+            const viewbox = source.viewbox();
+            target.viewbox(viewbox);
+        } catch (e) {
+        }
         isSyncing = false;
     }
 
-    viewers.left.on('canvas.viewbox.changed', () => sync(canvasLeft, canvasRight));
-    viewers.right.on('canvas.viewbox.changed', () => sync(canvasRight, canvasLeft));
+    const onLeftViewboxChanged = () => {
+        canvasLeft = getService(viewers.left, 'canvas', viewers.type) || canvasLeft;
+        canvasRight = getService(viewers.right, 'canvas', viewers.type) || canvasRight;
+        sync(canvasLeft, canvasRight);
+    };
+
+    const onRightViewboxChanged = () => {
+        canvasLeft = getService(viewers.left, 'canvas', viewers.type) || canvasLeft;
+        canvasRight = getService(viewers.right, 'canvas', viewers.type) || canvasRight;
+        sync(canvasRight, canvasLeft);
+    };
+
+    try {
+        viewers.left.on('canvas.viewbox.changed', onLeftViewboxChanged);
+    } catch (e) {
+    }
+    try {
+        viewers.right.on('canvas.viewbox.changed', onRightViewboxChanged);
+    } catch (e) {
+    }
+
+    if (viewers.type === 'dmn') {
+        let drdSyncCleanup = null;
+
+        const teardownDrdSync = () => {
+            if (drdSyncCleanup) {
+                drdSyncCleanup();
+                drdSyncCleanup = null;
+            }
+        };
+
+        const attachDrdSync = () => {
+            teardownDrdSync();
+
+            const leftViewer = viewers.left.getActiveViewer && viewers.left.getActiveViewer();
+            const rightViewer = viewers.right.getActiveViewer && viewers.right.getActiveViewer();
+            if (!leftViewer || !rightViewer) return;
+
+            let leftBus, rightBus, leftCanvas, rightCanvas;
+            try {
+                leftBus = leftViewer.get('eventBus');
+                rightBus = rightViewer.get('eventBus');
+                leftCanvas = leftViewer.get('canvas');
+                rightCanvas = rightViewer.get('canvas');
+            } catch (e) {
+                return;
+            }
+            if (!leftBus || !rightBus || !leftCanvas || !rightCanvas) return;
+
+            let busy = false;
+            const syncViewbox = (source, target) => {
+                if (busy) return;
+                busy = true;
+                try {
+                    target.viewbox(source.viewbox());
+                } catch (e) {
+                }
+                busy = false;
+            };
+
+            const onLeft = () => syncViewbox(leftCanvas, rightCanvas);
+            const onRight = () => syncViewbox(rightCanvas, leftCanvas);
+
+            leftBus.on('canvas.viewbox.changed', onLeft);
+            rightBus.on('canvas.viewbox.changed', onRight);
+
+            drdSyncCleanup = () => {
+                try {
+                    leftBus.off('canvas.viewbox.changed', onLeft);
+                } catch (e) {
+                }
+                try {
+                    rightBus.off('canvas.viewbox.changed', onRight);
+                } catch (e) {
+                }
+            };
+        };
+
+        const syncView = (targetViewer) => (event) => {
+            const active = event.activeView;
+            if (!active) return;
+
+            const targetActive = targetViewer.getActiveView && targetViewer.getActiveView();
+            if (!targetActive || targetActive.id !== active.id) {
+                const viewToOpen = (targetViewer.getViews() || []).find(v => v.id === active.id);
+                if (viewToOpen) {
+                    try {
+                        targetViewer.open(viewToOpen);
+                    } catch (e) {
+                    }
+                }
+            }
+
+            if (active.type === 'drd') {
+                attachDrdSync();
+            } else {
+                teardownDrdSync();
+            }
+
+            refreshDmnViewHighlight(active, viewers, state);
+        };
+
+        viewers.right.on('views.changed', syncView(viewers.left));
+        viewers.left.on('views.changed', syncView(viewers.right));
+    }
 
     function handleElementClick(event) {
         const element = event.element;
@@ -189,9 +327,8 @@ function syncViewers() {
 
     viewers.left.on('element.click', handleElementClick);
     viewers.right.on('element.click', handleElementClick);
+    viewers.syncAttached = true;
 }
-
-syncViewers();
 
 async function doDiff() {
     if (state.isDiffing) return;
@@ -201,27 +338,27 @@ async function doDiff() {
         const leftRef = state.gitLeftRef;
         const rightRef = state.gitRightRef;
 
-        if (!file || !leftRef || !rightRef) {
-            console.warn('Missing git parameters:', {file, leftRef, rightRef});
-            return;
-        }
+        if (!file || !leftRef || !rightRef) return;
 
         state.isDiffing = true;
         try {
-            console.log(`Fetching content for ${file} (${leftRef} vs ${rightRef})...`);
             [state.leftXml, state.rightXml] = await Promise.all([
                 fetch(`/api/content?ref=${leftRef}&path=${file}`).then(r => {
                     if (!r.ok) throw new Error(`Failed to fetch left content: ${r.status}`);
                     return r.text();
-                }).then(text => text.trim() === '' ? EMPTY_BPMN : text),
+                }).then(text => {
+                    const t = text.trim();
+                    return t === '' ? (file.endsWith('.dmn') ? EMPTY_DMN : EMPTY_BPMN) : text;
+                }),
                 fetch(`/api/content?ref=${rightRef}&path=${file}`).then(r => {
                     if (!r.ok) throw new Error(`Failed to fetch right content: ${r.status}`);
                     return r.text();
-                }).then(text => text.trim() === '' ? EMPTY_BPMN : text)
+                }).then(text => {
+                    const t = text.trim();
+                    return t === '' ? (file.endsWith('.dmn') ? EMPTY_DMN : EMPTY_BPMN) : text;
+                })
             ]);
         } catch (err) {
-            console.error(err);
-            alert('Failed to fetch file content from Git: ' + err.message);
             state.isDiffing = false;
             return;
         }
@@ -231,130 +368,51 @@ async function doDiff() {
     }
 
     try {
-        console.log('Calculating diff...');
-        ui.changesList.innerHTML = '';
-        const [leftDefs, rightDefs] = await Promise.all([
-            viewers.moddle.fromXML(state.leftXml).then(r => r.rootElement),
-            viewers.moddle.fromXML(state.rightXml).then(r => r.rootElement),
-        ]);
+        const filePath = state.mode !== 'manual' ? (state.gitFile || '') : '';
+        const detectedType = detectDocType(state.rightXml || state.leftXml || '', filePath);
+        state.docType = detectedType;
 
-        state.currentDiff = bpmnDiff(leftDefs, rightDefs) || {};
-        console.log('Diff calculated:', state.currentDiff);
+        ensureViewers(detectedType);
+
+        if (detectedType === 'bpmn') {
+            state.currentDiff = await computeBpmnDiff(viewers.moddle, state.leftXml, state.rightXml);
+        } else {
+            state.currentDiff = await computeDmnDiff(viewers.moddle, state.leftXml, state.rightXml);
+        }
 
         ui.noDiagramAlert.style.display = 'none';
         ui.diffItemsContainer.style.display = 'flex';
 
-        console.log('Importing XML into viewers...');
         await Promise.all([
             viewers.left.importXML(state.leftXml),
             viewers.right.importXML(state.rightXml)
         ]);
 
-        viewers.left.get('canvas').zoom('fit-viewport');
-        viewers.right.get('canvas').zoom('fit-viewport');
+        const leftCanvas = getService(viewers.left, 'canvas', viewers.type);
+        const rightCanvas = getService(viewers.right, 'canvas', viewers.type);
+        try {
+            leftCanvas && leftCanvas.zoom('fit-viewport');
+        } catch (e) {
+        }
+        try {
+            rightCanvas && rightCanvas.zoom('fit-viewport');
+        } catch (e) {
+        }
 
-        renderDiff(state.currentDiff, state.showDiff);
+        renderDiff(viewers, ui, state);
     } catch (err) {
-        console.error('Error during diff/render:', err);
-        alert('Failed to diff or render BPMN. See console for details.');
+        ui.noDiagramAlert.style.display = 'block';
+        ui.noDiagramAlert.innerHTML = `Error: ${err.message}`;
+        ui.diffItemsContainer.style.display = 'none';
     } finally {
         state.isDiffing = false;
     }
 }
 
-function renderDiff(diff, show) {
-    const registryLeft = viewers.left.get('elementRegistry');
-    const registryRight = viewers.right.get('elementRegistry');
-    const canvasLeft = viewers.left.get('canvas');
-    const canvasRight = viewers.right.get('canvas');
-
-    ui.changesList.innerHTML = '';
-
-    [canvasLeft, canvasRight].forEach(canvas => {
-        const registry = canvas === canvasLeft ? registryLeft : registryRight;
-        registry.getAll().forEach(el => {
-            canvas.removeMarker(el.id, 'diff-added');
-            canvas.removeMarker(el.id, 'diff-removed');
-            canvas.removeMarker(el.id, 'diff-changed');
-            canvas.removeMarker(el.id, 'diff-layout-changed');
-        });
-    });
-
-    const items = [];
-
-    for (const id in diff._added) {
-        items.push({id, action: 'added', element: diff._added[id]});
+function renderDiff(viewers, ui, state) {
+    if (state.docType === 'dmn') {
+        renderDmnDiff(viewers, ui, state);
+    } else {
+        renderBpmnDiff(viewers, ui, state);
     }
-
-    for (const id in diff._removed) {
-        items.push({id, action: 'removed', element: diff._removed[id]});
-    }
-
-    for (const id in diff._changed) {
-        items.push({id, action: 'changed', element: diff._changed[id]});
-    }
-
-    for (const id in diff._layoutChanged) {
-        if (!diff._changed[id] && !diff._added[id]) {
-            items.push({id, action: 'layoutChanged', element: diff._layoutChanged[id]});
-        }
-    }
-
-    items.forEach(item => {
-        const {id, action, element} = item;
-        const targetElement = element.model || element;
-        const businessObject = targetElement.businessObject || targetElement;
-        const rawType = businessObject.$type || 'Element';
-        const type = rawType.replace(/^bpmn:/, '');
-        const name = businessObject.name || '';
-
-        const isProcess = type === 'Process';
-        let markerClass;
-        if (action === 'added') markerClass = 'diff-added';
-        else if (action === 'removed') markerClass = 'diff-removed';
-        else if (action === 'layoutChanged') markerClass = 'diff-layout-changed';
-        else markerClass = 'diff-changed';
-
-        if (show && !isProcess) {
-            if (registryLeft.get(id)) {
-                canvasLeft.addMarker(id, markerClass);
-            }
-            if (registryRight.get(id)) {
-                canvasRight.addMarker(id, markerClass);
-            }
-        }
-
-        const li = document.createElement('li');
-        li.className = action;
-        li.dataset.id = id;
-
-        const labelText = name ? `${name} (id=${id})` : `id=${id}`;
-
-        let details = '';
-        if (action === 'changed' && element.attrs) {
-            details = Object.entries(element.attrs)
-                .map(([key, val]) => `${key}: ${val.oldValue} -> ${val.newValue}`)
-                .join('\n');
-        }
-
-        if (details) {
-            li.title = details;
-        }
-
-        li.innerHTML = `
-            <span class="diff-type">${action}</span>
-            <span class="diff-label">${type}: ${labelText}</span>
-            ${details ? `<span class="diff-details">${details.replace(/\n/g, '<br/>')}</span>` : ''}
-        `;
-        li.addEventListener('click', () => {
-            const elLeft = registryLeft.get(id);
-            const elRight = registryRight.get(id);
-            if (elLeft) canvasLeft.scrollToElement(elLeft);
-            if (elRight) canvasRight.scrollToElement(elRight);
-
-            ui.changesList.querySelectorAll('li').forEach(el => el.classList.remove('selected'));
-            li.classList.add('selected');
-        });
-        ui.changesList.appendChild(li);
-    });
 }
