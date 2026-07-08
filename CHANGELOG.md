@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-06-01
+
+### Changed
+
+- `HOTFIX` Downgrade BPMN library dependencies
+
 ## [1.1.1] - 2026-05-30
 
 ### Changed
@@ -81,7 +87,8 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/1.1.1...HEAD
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/1.1.2...HEAD
+[1.1.2]: https://github.com/Catrun404/bpmn-diff/compare/1.1.1...1.1.2
 [1.1.1]: https://github.com/Catrun404/bpmn-diff/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/Catrun404/bpmn-diff/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/0.1.0...1.0.0
