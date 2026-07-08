@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-08
+
 ### Added
 
 - Support for DRD
@@ -92,11 +94,12 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/1.1.2...HEAD
-[1.1.2]: https://github.com/Catrun404/bpmn-diff/compare/1.1.1...1.1.2
-[1.1.1]: https://github.com/Catrun404/bpmn-diff/compare/1.1.0...1.1.1
-[1.1.0]: https://github.com/Catrun404/bpmn-diff/compare/1.0.0...1.1.0
-[1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/0.1.0...1.0.0
-[0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/0.0.2...0.1.0
-[0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/0.0.1...0.0.2
-[0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/0.0.1
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.2...v1.2.0
+[1.1.2]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.1.0...v1.0.0
+[0.1.0]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.2...v0.1.0
+[0.0.2]: https://github.com/Catrun404/bpmn-diff/compare/v0.0.1...v0.0.2
+[0.0.1]: https://github.com/Catrun404/bpmn-diff/commits/v0.0.1
