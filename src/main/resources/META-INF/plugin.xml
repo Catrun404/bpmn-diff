@@ -5,6 +5,7 @@
     <vendor>catrun404</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.jcef</depends>
     <depends>Git4Idea</depends>
 
     <resource-bundle>messages.BpmnDiffBundle</resource-bundle>

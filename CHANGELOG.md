@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## Fixed
+
+- FE initialization for IntelliJ 2026.2
+
 ## [1.2.0] - 2026-07-08
 
 ### Added
