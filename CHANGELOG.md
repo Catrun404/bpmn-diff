@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## Fixed
+### Fixed
 
 - FE initialization for IntelliJ 2026.2
 
