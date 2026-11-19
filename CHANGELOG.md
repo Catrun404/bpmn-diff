@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-19
+
 ### Changed
 
 - Update Platform Version to 2026.3
@@ -104,7 +106,8 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.1...v1.1.2
