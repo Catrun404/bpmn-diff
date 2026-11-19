@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Update Platform Version to 2026.3
+
 ## [1.2.1] - 2026-07-29
 
 ### Fixed
