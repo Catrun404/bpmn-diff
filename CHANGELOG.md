@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-11-20
+
 ### Fixed
 
 - Fix handling of mismatched or reordered DRG elements when comparing DMNs
@@ -110,7 +112,8 @@
 - Enhanced UI/UX for consistency with IntelliJ Platform
 - Streamlined plugin resources and removed unused assets
 
-[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Catrun404/bpmn-diff/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Catrun404/bpmn-diff/compare/v1.1.2...v1.2.0
