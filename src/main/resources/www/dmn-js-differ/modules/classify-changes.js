@@ -9,14 +9,18 @@ export default function classifyChanges(delta, oldDefinitions, newDefinitions) {
 
   const extractId = (obj, path) => {
     let current = obj;
-    let id;
+    let id = null;
     for (const key of path) {
+      if (current == null) {
+        break;
+      }
       current = current[key];
-      if (getValue(current)?.id) {
-        id = getValue(current).id;
+      const val = getValue(current);
+      if (val?.id) {
+        id = val.id;
       }
     }
-    return id || null;
+    return id;
   };
 
   const traverse = (delta, path = []) => {

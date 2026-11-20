@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix handling of mismatched or reordered DRG elements when comparing DMNs
+
 ## [1.2.2] - 2026-11-19
 
 ### Changed

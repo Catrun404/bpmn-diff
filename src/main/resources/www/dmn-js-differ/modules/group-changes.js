@@ -80,6 +80,7 @@ const _getDefinitionsDisplayId = (path, oldDefinitions, newDefinitions) => {
 };
 
 const _getDrdElementType = (path) => {
+  if (!path) return null;
   const DRD_ELEMENTS = new Set(["informationRequirement", "drgElement"]);
 
   for (let element of DRD_ELEMENTS) {
@@ -87,9 +88,11 @@ const _getDrdElementType = (path) => {
       return element;
     }
   }
+  return null;
 };
 
 const _extractPathUntilTarget = (path, target) => {
+  if (!target || !path) return null;
   const regex = new RegExp(`(^|[\\w\\.]+\\.)(${target}(?:\\.\\d+)?)`);
   const match = path.match(regex);
   return match ? match[0].trim() : null;
@@ -122,7 +125,7 @@ const _setDrdElementChangeType = (
   drdElementPath,
   drdElementId
 ) => {
-  const isChangeTypeNotAlreadySet = !grouped?.drdElementId?.changeType;
+  const isChangeTypeNotAlreadySet = !grouped[drdElementId]?.changeType;
   if (isChangeTypeNotAlreadySet) {
     let drdElementChangeType;
 
